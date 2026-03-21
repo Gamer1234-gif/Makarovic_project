@@ -21,6 +21,7 @@ public:
 
 private:
     float speed = 5.0f;
+    bool up = false, down = false, left = false, right = false;
 };
 
 class Enemy : public Character {
