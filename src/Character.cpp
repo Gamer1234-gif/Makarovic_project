@@ -29,7 +29,7 @@ void Player::update(int windowWidth, int windowHeight) {
     // std::cout << "Player position: (" << x << ", " << y << ")\n";
 }
 
-void Player::render(SDL_Renderer* ren) {
+void Player::render(SDL_Renderer* ren) const {
     SDL_SetRenderDrawColor(ren, 255, 255, 0, 255); // Yellow for player
     SDL_Rect rect = {static_cast<int>(x), static_cast<int>(y), 20, 20};
     SDL_RenderFillRect(ren, &rect);
@@ -37,9 +37,10 @@ void Player::render(SDL_Renderer* ren) {
 
 void Enemy::update(int windowWidth, int windowHeight) {
     // Simple AI: move towards player or something, but for now, static
+    // std::cout << "Enemy position: (" << x << ", " << y << ")\n";
 }
 
-void Enemy::render(SDL_Renderer* ren) {
+void Enemy::render(SDL_Renderer* ren) const {
     SDL_SetRenderDrawColor(ren, 255, 0, 0, 255); // Red for enemy
     SDL_Rect rect = {static_cast<int>(x), static_cast<int>(y), 20, 20};
     SDL_RenderFillRect(ren, &rect);

@@ -30,5 +30,5 @@ private:
     PerlinNoise noise{16305};                  // Fixed seed for consistent results
 
     Player player;
-    Enemy enemy;
+    std::vector<Enemy> enemies;
 };

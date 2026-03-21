@@ -30,13 +30,15 @@ bool Game::init() {
         }
     }
 
-    // Initialize player in the middle of the screen
-    player.x = 1920 / 2 - 10; // Center horizontally, adjust for size
-    player.y = 1080 / 2 - 10; // Center vertically
+    player.Spawn(grid, SQUARE_SIZE);
 
     // Initialize enemy in the middle of the top left quadrant
-    enemy.x = 960 / 2 - 10; // Middle of 0-960
-    enemy.y = 540 / 2 - 10; // Middle of 0-540
+    for (int i = 0; i < GRID_SIZE / 2; ++i) {
+        Enemy e;
+        e.Spawn(grid, SQUARE_SIZE);
+        enemies.push_back(e);
+    }
+
 
     running = true;
     return true;
@@ -58,7 +60,21 @@ void Game::handleEvents() {
 void Game::update() {
     player.update(windowWidth, windowHeight);
     player.Boundaries(windowWidth, windowHeight);
-    enemy.update(windowWidth, windowHeight);
+    for (auto& enemy : enemies) {
+        enemy.update(windowWidth, windowHeight);
+    }
+
+    for (auto it = enemies.begin(); it != enemies.end();) {
+        SDL_Rect pRect = player.getRect();
+        SDL_Rect eRect = it->getRect();
+
+        if (SDL_HasIntersection(&pRect, &eRect)) {
+            std::cout << "Enemy destroyed!\n";
+            it = enemies.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 void Game::render() {
@@ -68,9 +84,9 @@ void Game::render() {
     for (int i = 0; i < GRID_SIZE; ++i) {
         for (int j = 0; j < GRID_SIZE; ++j) {
             if (grid[i][j] == 1) {
-                SDL_SetRenderDrawColor(ren, 0, 200, 0, 255);
+                SDL_SetRenderDrawColor(ren, 0, 200, 0, 255); // Green for land
             } else {
-                SDL_SetRenderDrawColor(ren, 0, 0, 200, 255);
+                SDL_SetRenderDrawColor(ren, 0, 0, 200, 255); // Blue for water
             }
             SDL_Rect cell{j * SQUARE_SIZE, i * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE};
             SDL_RenderFillRect(ren, &cell);
@@ -78,7 +94,9 @@ void Game::render() {
     }
 
     player.render(ren);
-    enemy.render(ren);
+    for (const auto& enemy : enemies) {
+        enemy.render(ren);
+    }
 
     SDL_RenderPresent(ren);
 }
