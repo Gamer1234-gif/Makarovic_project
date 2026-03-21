@@ -1,4 +1,5 @@
 #include "Character.h"
+#include <iostream>
 
 void Player::handleInput(const SDL_Event& e) {
     if (e.type == SDL_KEYDOWN) {
@@ -20,11 +21,12 @@ void Player::handleInput(const SDL_Event& e) {
     }
 }
 
-void Player::update() {
-    if (up) y -= speed;
-    if (down) y += speed;
-    if (left) x -= speed;
-    if (right) x += speed;
+void Player::update(int windowWidth, int windowHeight) {
+    if (up && y - speed >= 0) y -= speed;
+    if (down && y + speed <= windowHeight - 20) y += speed;
+    if (left && x - speed >= 0) x -= speed;
+    if (right && x + speed <= windowWidth - 20) x += speed;
+    // std::cout << "Player position: (" << x << ", " << y << ")\n";
 }
 
 void Player::render(SDL_Renderer* ren) {
@@ -33,7 +35,7 @@ void Player::render(SDL_Renderer* ren) {
     SDL_RenderFillRect(ren, &rect);
 }
 
-void Enemy::update() {
+void Enemy::update(int windowWidth, int windowHeight) {
     // Simple AI: move towards player or something, but for now, static
 }
 

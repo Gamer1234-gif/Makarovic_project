@@ -20,6 +20,8 @@ private:
 
     static const int GRID_SIZE = 75;
     static const int SQUARE_SIZE = 30;
+    int windowWidth = 1920;
+    int windowHeight = 1080;
 
     std::vector<std::vector<int>> grid;
 

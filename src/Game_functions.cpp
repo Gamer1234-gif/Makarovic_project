@@ -9,7 +9,9 @@ bool Game::init() {
         return false;
     }
 
-    win = SDL_CreateWindow("GAME", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1920, 1080, SDL_WINDOW_SHOWN);
+    win = SDL_CreateWindow(
+        "GAME", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN
+    );
 
     if (!win) return false;
 
@@ -54,8 +56,9 @@ void Game::handleEvents() {
 }
 
 void Game::update() {
-    player.update();
-    enemy.update();
+    player.update(windowWidth, windowHeight);
+    player.Boundaries(windowWidth, windowHeight);
+    enemy.update(windowWidth, windowHeight);
 }
 
 void Game::render() {
