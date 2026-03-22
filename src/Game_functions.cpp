@@ -1,5 +1,6 @@
 #include "Character.h"
 #include "Game.h"
+#include <SDL2/SDL_ttf.h>
 #include <iostream>
 
 
@@ -19,6 +20,19 @@ bool Game::init() {
 
     if (!ren) return false;
 
+    if (TTF_Init() == -1) {
+        std::cerr << "TTF_Init failed: " << TTF_GetError() << "\n";
+        return false;
+    }
+
+    font = TTF_OpenFont("arial.ttf", 24);
+    if (!font) {
+        std::cerr << "TTF_OpenFont failed: " << TTF_GetError() << "\n";
+        return false;
+    }
+
+    srand(time(NULL)); // Seed random number generator
+
     // GRID GENERATION
     grid.resize(GRID_SIZE, std::vector<int>(GRID_SIZE));
 
@@ -30,13 +44,28 @@ bool Game::init() {
         }
     }
 
-    player.Spawn(grid, SQUARE_SIZE);
+    player.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
 
     // Initialize enemy in the middle of the top left quadrant
-    for (int i = 0; i < GRID_SIZE / 2; ++i) {
+    for (int i = 0; i < 10; ++i) {
         Enemy e;
-        e.Spawn(grid, SQUARE_SIZE);
+        e.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
         enemies.push_back(e);
+        enemiesRemaining++;
+    }
+
+    for (int i = 0; i < GRID_SIZE / 2; ++i) {
+        Trash t;
+        t.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
+        trash.push_back(t);
+        trashRemaining++;
+    }
+
+    for (int i = 0; i < 10; ++i) {
+        Friend f;
+        f.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
+        friends.push_back(f);
+        friendsRemaining++;
     }
 
 
@@ -71,6 +100,36 @@ void Game::update() {
         if (SDL_HasIntersection(&pRect, &eRect)) {
             std::cout << "Enemy destroyed!\n";
             it = enemies.erase(it);
+            score++;
+            enemiesRemaining--;
+        } else {
+            ++it;
+        }
+    }
+
+    for (auto it = friends.begin(); it != friends.end();) {
+        SDL_Rect pRect = player.getRect();
+        SDL_Rect fRect = it->getRect();
+
+        if (SDL_HasIntersection(&pRect, &fRect)) {
+            std::cout << "Wrong one!\n";
+            it = friends.erase(it);
+            score -= 2; // Penalty for hitting a friend
+            friendsRemaining--;
+        } else {
+            ++it;
+        }
+    }
+
+    for (auto it = trash.begin(); it != trash.end();) {
+        SDL_Rect pRect = player.getRect();
+        SDL_Rect tRect = it->getRect();
+
+        if (SDL_HasIntersection(&pRect, &tRect)) {
+            std::cout << "Trash collected!\n";
+            it = trash.erase(it);
+            score++;
+            trashRemaining--;
         } else {
             ++it;
         }
@@ -98,6 +157,45 @@ void Game::render() {
         enemy.render(ren);
     }
 
+    for (const auto& friend_ : friends) {
+        friend_.render(ren);
+    }
+
+    for (const auto& t : trash) {
+        t.render(ren);
+    }
+
+    if (font) {
+        std::string text = "Score: " + std::to_string(score) + " Enemies: " + std::to_string(enemiesRemaining) +
+                           " Trash: " + std::to_string(trashRemaining) +
+                           " Friends: " + std::to_string(friendsRemaining);
+
+        SDL_Color color = {255, 255, 255, 255}; // white
+        SDL_Surface* surface = TTF_RenderText_Solid(font, text.c_str(), color);
+        if (surface) {
+            SDL_Texture* texture = SDL_CreateTextureFromSurface(ren, surface);
+            if (texture) {
+                SDL_Rect dstRect = {20, 20, surface->w, surface->h};
+                SDL_RenderCopy(ren, texture, NULL, &dstRect);
+                SDL_DestroyTexture(texture);
+            }
+            SDL_FreeSurface(surface);
+        }
+    }
+
+    SDL_RenderPresent(ren);
+    for (const auto& enemy : enemies) {
+        enemy.render(ren);
+    }
+
+    for (const auto& friend_ : friends) {
+        friend_.render(ren);
+    }
+
+    for (const auto& t : trash) {
+        t.render(ren);
+    }
+
     SDL_RenderPresent(ren);
 }
 
@@ -111,6 +209,12 @@ void Game::run() {
 }
 
 void Game::clean() {
+    if (font) {
+        TTF_CloseFont(font);
+        font = nullptr;
+    }
+    TTF_Quit();
+
     SDL_DestroyRenderer(ren);
     SDL_DestroyWindow(win);
     SDL_Quit();

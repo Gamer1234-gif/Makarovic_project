@@ -45,3 +45,24 @@ void Enemy::render(SDL_Renderer* ren) const {
     SDL_Rect rect = {static_cast<int>(x), static_cast<int>(y), 20, 20};
     SDL_RenderFillRect(ren, &rect);
 }
+
+void Friend::update(int windowWidth, int windowHeight) {
+    // Simple AI: move towards player or something, but for now, static
+    // std::cout << "Friend position: (" << x << ", " << y << ")\n";
+}
+
+void Friend::render(SDL_Renderer* ren) const {
+    SDL_SetRenderDrawColor(ren, 20, 255, 125, 255); // Green for friend
+    SDL_Rect rect = {static_cast<int>(x), static_cast<int>(y), 20, 20};
+    SDL_RenderFillRect(ren, &rect);
+}
+
+void Trash::update(int windowWidth, int windowHeight) {
+    // Static, no update needed
+}
+
+void Trash::render(SDL_Renderer* ren) const {
+    SDL_SetRenderDrawColor(ren, 100, 100, 100, 255); // Red for trash
+    SDL_Rect rect = {static_cast<int>(x), static_cast<int>(y), 20, 20};
+    SDL_RenderFillRect(ren, &rect);
+}

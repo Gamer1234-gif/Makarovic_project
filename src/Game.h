@@ -2,6 +2,7 @@
 #include "Character.h"
 #include "PerlinNoise.hpp"
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <vector>
 
 class Game {
@@ -31,4 +32,13 @@ private:
 
     Player player;
     std::vector<Enemy> enemies;
+    std::vector<Friend> friends;
+    std::vector<Trash> trash;
+
+    TTF_Font* font = nullptr;
+
+    int score = 0;
+    int enemiesRemaining = 0;
+    int trashRemaining = 0;
+    int friendsRemaining = 0;
 };
