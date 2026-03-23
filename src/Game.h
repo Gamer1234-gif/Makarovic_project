@@ -34,6 +34,7 @@ private:
     std::vector<Enemy> enemies;
     std::vector<Friend> friends;
     std::vector<Trash> trash;
+    Boat boat;
 
     TTF_Font* font = nullptr;
 

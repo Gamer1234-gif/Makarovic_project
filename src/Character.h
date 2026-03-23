@@ -26,6 +26,7 @@ public:
 class Player : public Character {
 public:
     void handleInput(const SDL_Event& e);
+    void boatExitInput(const SDL_Event& e);
     void update(int windowWidth, int windowHeight) override;
     void render(SDL_Renderer* ren) const override;
     void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) override {
@@ -38,6 +39,8 @@ public:
         if (x > windowWidth - 20) x = windowWidth - 20;
         if (y > windowHeight - 20) y = windowHeight - 20;
     };
+
+    bool inBoat = false;
 
 private:
     float speed = 5.0f;
@@ -104,4 +107,29 @@ public:
             }
         }
     }
+};
+
+class Boat : public Character {
+public:
+    void handleInput(const SDL_Event& e);
+    void update(int windowWidth, int windowHeight) override;
+    void render(SDL_Renderer* ren) const override;
+    void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) override {
+        while (true) {
+            size_t i = rand() % grid.size();
+            size_t j = rand() % grid[i].size();
+            if (grid[i][j] == 0) { // Spawn on water
+                x = j * squareSize + 5;
+                y = i * squareSize + 5;
+                if (x < windowWidth - 20 && y < windowHeight - 20) {
+                    std::cout << "Boat spawned at: (" << x << ", " << y << ")\n";
+                    return;
+                }
+            }
+        }
+    }
+
+private:
+    float speed = 5.0f;
+    bool up = false, down = false, left = false, right = false;
 };

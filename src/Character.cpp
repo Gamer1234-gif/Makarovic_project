@@ -21,6 +21,12 @@ void Player::handleInput(const SDL_Event& e) {
     }
 }
 
+void Player::boatExitInput(const SDL_Event& e) {
+    if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_LSHIFT) {
+        inBoat = false;
+    }
+}
+
 void Player::update(int windowWidth, int windowHeight) {
     if (up && y - speed >= 0) y -= speed;
     if (down && y + speed <= windowHeight - 20) y += speed;
@@ -63,6 +69,39 @@ void Trash::update(int windowWidth, int windowHeight) {
 
 void Trash::render(SDL_Renderer* ren) const {
     SDL_SetRenderDrawColor(ren, 100, 100, 100, 255); // Red for trash
+    SDL_Rect rect = {static_cast<int>(x), static_cast<int>(y), 20, 20};
+    SDL_RenderFillRect(ren, &rect);
+}
+
+void Boat::handleInput(const SDL_Event& e) {
+    if (e.type == SDL_KEYDOWN) {
+        switch (e.key.keysym.sym) {
+        case SDLK_w: up = true; break;
+        case SDLK_s: down = true; break;
+        case SDLK_a: left = true; break;
+        case SDLK_d: right = true; break;
+        }
+    }
+
+    if (e.type == SDL_KEYUP) {
+        switch (e.key.keysym.sym) {
+        case SDLK_w: up = false; break;
+        case SDLK_s: down = false; break;
+        case SDLK_a: left = false; break;
+        case SDLK_d: right = false; break;
+        }
+    }
+}
+
+void Boat::update(int windowWidth, int windowHeight) {
+    if (up && y - speed >= 0) y -= speed;
+    if (down && y + speed <= windowHeight - 20) y += speed;
+    if (left && x - speed >= 0) x -= speed;
+    if (right && x + speed <= windowWidth - 20) x += speed;
+}
+
+void Boat::render(SDL_Renderer* ren) const {
+    SDL_SetRenderDrawColor(ren, 150, 75, 0, 255); // Brown for boat
     SDL_Rect rect = {static_cast<int>(x), static_cast<int>(y), 20, 20};
     SDL_RenderFillRect(ren, &rect);
 }

@@ -25,7 +25,7 @@ bool Game::init() {
         return false;
     }
 
-    font = TTF_OpenFont("arial.ttf", 24);
+    font = TTF_OpenFont("arial.ttf", 14);
     if (!font) {
         std::cerr << "TTF_OpenFont failed: " << TTF_GetError() << "\n";
         return false;
@@ -45,6 +45,7 @@ bool Game::init() {
     }
 
     player.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
+    boat.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
 
     // Initialize enemy in the middle of the top left quadrant
     for (int i = 0; i < 10; ++i) {
@@ -82,7 +83,21 @@ void Game::handleEvents() {
         if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
             running = false;
         }
-        player.handleInput(event);
+        if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_e) {
+            SDL_Rect boatRect = boat.getRect();
+            SDL_Rect pRect = player.getRect();
+            if (SDL_HasIntersection(&pRect, &boatRect)) {
+                player.inBoat = true;
+            }
+        }
+        if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_LSHIFT) {
+            player.boatExitInput(event);
+        }
+        if (player.inBoat) {
+            boat.handleInput(event);
+        } else {
+            player.handleInput(event);
+        }
     }
 }
 
@@ -134,6 +149,12 @@ void Game::update() {
             ++it;
         }
     }
+
+    if (player.inBoat) {
+        boat.update(windowWidth, windowHeight);
+        player.x = boat.x;
+        player.y = boat.y;
+    }
 }
 
 void Game::render() {
@@ -153,6 +174,7 @@ void Game::render() {
     }
 
     player.render(ren);
+    boat.render(ren);
     for (const auto& enemy : enemies) {
         enemy.render(ren);
     }
