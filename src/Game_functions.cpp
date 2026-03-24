@@ -91,7 +91,7 @@ void Game::handleEvents() {
             }
         }
         if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_LSHIFT) {
-            player.boatExitInput(event);
+            player.boatExitInput(event, grid, boat);
         }
         if (player.getInBoat()) {
             boat.handleInput(event);

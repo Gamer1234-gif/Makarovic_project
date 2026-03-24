@@ -21,8 +21,12 @@ void Player::handleInput(const SDL_Event& e) {
     }
 }
 
-void Player::boatExitInput(const SDL_Event& e) {
-    if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_LSHIFT) {
+void Player::boatExitInput(const SDL_Event& e, const std::vector<std::vector<int>>& grid, const Boat& boat) {
+    int boatI = (boat.getY() + 10) / 30; // Boat's grid Y position
+    int boatJ = (boat.getX() + 10) / 30; // Boat's grid X position
+    if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_LSHIFT &&
+        (boat.check_up(grid, boatI - 1, boatJ) || boat.check_down(grid, boatI + 1, boatJ) ||
+         boat.check_left(grid, boatI, boatJ - 1) || boat.check_right(grid, boatI, boatJ + 1))) {
         inBoat = false;
     }
 }
@@ -129,10 +133,30 @@ void Boat::handleInput(const SDL_Event& e) {
 }
 
 void Boat::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid) {
-    if (moveUp && y - speed >= 0) y -= speed;
-    if (moveDown && y + speed <= windowHeight - 20) y += speed;
-    if (moveLeft && x - speed >= 0) x -= speed;
-    if (moveRight && x + speed <= windowWidth - 20) x += speed;
+    int gridX = (x + 10) / 30;
+    int gridY = (y + 10) / 30;
+
+    if (moveUp && y - speed >= 0) {
+        if (grid[(y - speed + 10) / 30][gridX] == 0) {
+            y -= speed;
+        }
+    }
+
+    if (moveDown && y + speed <= windowHeight - 20) {
+        if (grid[(y + speed + 10) / 30][gridX] == 0) {
+            y += speed;
+        }
+    }
+    if (moveLeft && x - speed >= 0) {
+        if (grid[gridY][(x - speed + 10) / 30] == 0) {
+            x -= speed;
+        }
+    }
+    if (moveRight && x + speed <= windowWidth - 20) {
+        if (grid[gridY][(x + speed + 10) / 30] == 0) {
+            x += speed;
+        }
+    }
 }
 
 void Boat::render(SDL_Renderer* ren) const {
@@ -141,28 +165,28 @@ void Boat::render(SDL_Renderer* ren) const {
     SDL_RenderFillRect(ren, &rect);
 }
 
-bool Boat::check_up(const std::vector<std::vector<int>>& grid, int i, int j) {
+bool Boat::check_up(const std::vector<std::vector<int>>& grid, int i, int j) const {
     if (i > 0 && grid[i][j] == 1) {
         return true;
     }
     return false;
 }
 
-bool Boat::check_down(const std::vector<std::vector<int>>& grid, int i, int j) {
+bool Boat::check_down(const std::vector<std::vector<int>>& grid, int i, int j) const {
     if (i < grid.size() - 1 && grid[i][j] == 1) {
         return true;
     }
     return false;
 }
 
-bool Boat::check_left(const std::vector<std::vector<int>>& grid, int i, int j) {
+bool Boat::check_left(const std::vector<std::vector<int>>& grid, int i, int j) const {
     if (j > 0 && grid[i][j] == 1) {
         return true;
     }
     return false;
 }
 
-bool Boat::check_right(const std::vector<std::vector<int>>& grid, int i, int j) {
+bool Boat::check_right(const std::vector<std::vector<int>>& grid, int i, int j) const {
     if (j < grid[i].size() - 1 && grid[i][j] == 1) {
         return true;
     }

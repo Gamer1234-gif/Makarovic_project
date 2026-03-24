@@ -28,7 +28,7 @@ public:
 class Player {
 public:
     void handleInput(const SDL_Event& e);
-    void boatExitInput(const SDL_Event& e);
+    void boatExitInput(const SDL_Event& e, const std::vector<std::vector<int>>& grid, const Boat& boat);
     void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, const Boat& boat);
     void render(SDL_Renderer* ren) const;
     void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) {
@@ -134,10 +134,10 @@ public:
     void handleInput(const SDL_Event& e);
     void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid);
     void render(SDL_Renderer* ren) const;
-    bool check_up(const std::vector<std::vector<int>>& grid, int i, int j);
-    bool check_down(const std::vector<std::vector<int>>& grid, int i, int j);
-    bool check_left(const std::vector<std::vector<int>>& grid, int i, int j);
-    bool check_right(const std::vector<std::vector<int>>& grid, int i, int j);
+    bool check_up(const std::vector<std::vector<int>>& grid, int i, int j) const;
+    bool check_down(const std::vector<std::vector<int>>& grid, int i, int j) const;
+    bool check_left(const std::vector<std::vector<int>>& grid, int i, int j) const;
+    bool check_right(const std::vector<std::vector<int>>& grid, int i, int j) const;
     void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) {
         while (true) {
             size_t i = rand() % grid.size();
