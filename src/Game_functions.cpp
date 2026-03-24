@@ -87,13 +87,13 @@ void Game::handleEvents() {
             SDL_Rect boatRect = boat.getRect();
             SDL_Rect pRect = player.getRect();
             if (SDL_HasIntersection(&pRect, &boatRect)) {
-                player.inBoat = true;
+                player.setInBoat(true);
             }
         }
         if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_LSHIFT) {
             player.boatExitInput(event);
         }
-        if (player.inBoat) {
+        if (player.getInBoat()) {
             boat.handleInput(event);
         } else {
             player.handleInput(event);
@@ -102,10 +102,10 @@ void Game::handleEvents() {
 }
 
 void Game::update() {
-    player.update(windowWidth, windowHeight);
+    player.update(windowWidth, windowHeight, grid, boat);
     player.Boundaries(windowWidth, windowHeight);
     for (auto& enemy : enemies) {
-        enemy.update(windowWidth, windowHeight);
+        enemy.update(windowWidth, windowHeight, grid);
     }
 
     for (auto it = enemies.begin(); it != enemies.end();) {
@@ -150,10 +150,10 @@ void Game::update() {
         }
     }
 
-    if (player.inBoat) {
-        boat.update(windowWidth, windowHeight);
-        player.x = boat.x;
-        player.y = boat.y;
+    if (player.getInBoat()) {
+        boat.update(windowWidth, windowHeight, grid);
+        player.setX(boat.getX());
+        player.setY(boat.getY());
     }
 }
 

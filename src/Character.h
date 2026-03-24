@@ -5,9 +5,11 @@
 #include <iostream>
 #include <vector>
 
+class Boat; // Forward declaration
+
 class Character {
 public:
-    virtual void update(int windowWidth, int windowHeight) = 0;
+    virtual void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid) = 0;
     virtual void render(SDL_Renderer* ren) const = 0;
     virtual void Spawn(
         const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight
@@ -23,13 +25,13 @@ public:
     float x, y;
 };
 
-class Player : public Character {
+class Player {
 public:
     void handleInput(const SDL_Event& e);
     void boatExitInput(const SDL_Event& e);
-    void update(int windowWidth, int windowHeight) override;
-    void render(SDL_Renderer* ren) const override;
-    void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) override {
+    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, const Boat& boat);
+    void render(SDL_Renderer* ren) const;
+    void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) {
         x = 100;
         y = 100;
     };
@@ -39,19 +41,37 @@ public:
         if (x > windowWidth - 20) x = windowWidth - 20;
         if (y > windowHeight - 20) y = windowHeight - 20;
     };
-
-    bool inBoat = false;
+    SDL_Rect getRect() const {
+        return SDL_Rect{(int)x, (int)y, 20, 20};
+    };
+    void setInBoat(bool value) {
+        inBoat = value;
+    }
+    bool getInBoat() {
+        return inBoat;
+    }
+    int getX() const {
+        return x;
+    }
+    int getY() const {
+        return y;
+    }
+    void setX(int newX) {
+        x = newX;
+    }
+    void setY(int newY) {
+        y = newY;
+    }
 
 private:
+    int x, y;
+    bool inBoat = false, moveUp = false, moveDown = false, moveLeft = false, moveRight = false;
     float speed = 5.0f;
-    bool up = false, down = false, left = false, right = false;
-    int maxHeight;
-    int maxWidth;
 };
 
 class Enemy : public Character {
 public:
-    void update(int windowWidth, int windowHeight) override;
+    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid) override;
     void render(SDL_Renderer* ren) const override;
     void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) override {
         while (true) {
@@ -71,7 +91,7 @@ public:
 
 class Friend : public Character {
 public:
-    void update(int windowWidth, int windowHeight) override;
+    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid) override;
     void render(SDL_Renderer* ren) const override;
     void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) override {
         while (true) {
@@ -91,7 +111,7 @@ public:
 
 class Trash : public Character {
 public:
-    void update(int windowWidth, int windowHeight) override;
+    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid) override;
     void render(SDL_Renderer* ren) const override;
     void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) override {
         while (true) {
@@ -109,16 +129,23 @@ public:
     }
 };
 
-class Boat : public Character {
+class Boat {
 public:
     void handleInput(const SDL_Event& e);
-    void update(int windowWidth, int windowHeight) override;
-    void render(SDL_Renderer* ren) const override;
-    void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) override {
+    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid);
+    void render(SDL_Renderer* ren) const;
+    bool check_up(const std::vector<std::vector<int>>& grid, int i, int j);
+    bool check_down(const std::vector<std::vector<int>>& grid, int i, int j);
+    bool check_left(const std::vector<std::vector<int>>& grid, int i, int j);
+    bool check_right(const std::vector<std::vector<int>>& grid, int i, int j);
+    void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) {
         while (true) {
             size_t i = rand() % grid.size();
             size_t j = rand() % grid[i].size();
-            if (grid[i][j] == 0) { // Spawn on water
+            if (grid[i][j] == 0 &&
+                (check_up(grid, i - 1, j) || check_left(grid, i, j - 1) || check_down(grid, i + 1, j) ||
+                 check_right(grid, i, j + 1)) &&
+                grid[i - 1][j] == 1) { // Spawn on water
                 x = j * squareSize + 5;
                 y = i * squareSize + 5;
                 if (x < windowWidth - 20 && y < windowHeight - 20) {
@@ -128,8 +155,24 @@ public:
             }
         }
     }
+    SDL_Rect getRect() const {
+        return SDL_Rect{(int)x, (int)y, 20, 20};
+    };
+    int getX() const {
+        return x;
+    }
+    int getY() const {
+        return y;
+    }
+    void setX(int newX) {
+        x = newX;
+    }
+    void setY(int newY) {
+        y = newY;
+    }
 
 private:
     float speed = 5.0f;
-    bool up = false, down = false, left = false, right = false;
+    bool moveUp = false, moveDown = false, moveLeft = false, moveRight = false;
+    int x, y;
 };
