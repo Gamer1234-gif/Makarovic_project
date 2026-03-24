@@ -103,7 +103,48 @@ void Friend::render(SDL_Renderer* ren) const {
 }
 
 void Trash::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid) {
-    // Static, no update needed
+    int gridX = (x + 10) / 30;
+    int gridY = (y + 10) / 30;
+
+    if (gridY - 2 >= 0 && grid[gridY - 2][gridX] == 0) { // If on water, move randomly
+        int direction = rand() % 4;
+        switch (direction) {
+        case 0: y -= speed; break;
+        case 1: y += speed; break;
+        case 2: x -= speed; break;
+        case 3: x += speed; break;
+        }
+    }
+
+    if (gridY + 2 < grid.size() && grid[gridY + 2][gridX] == 0) { // If on water, move randomly
+        int direction = rand() % 4;
+        switch (direction) {
+        case 0: y -= speed; break;
+        case 1: y += speed; break;
+        case 2: x -= speed; break;
+        case 3: x += speed; break;
+        }
+    }
+
+    if (gridX - 2 >= 0 && grid[gridY][gridX - 2] == 0) { // If on water, move randomly
+        int direction = rand() % 4;
+        switch (direction) {
+        case 0: y -= speed; break;
+        case 1: y += speed; break;
+        case 2: x -= speed; break;
+        case 3: x += speed; break;
+        }
+    }
+
+    if (gridX + 2 < grid[gridY].size() && grid[gridY][gridX + 2] == 0) { // If on water, move randomly
+        int direction = rand() % 4;
+        switch (direction) {
+        case 0: y -= speed; break;
+        case 1: y += speed; break;
+        case 2: x -= speed; break;
+        case 3: x += speed; break;
+        }
+    }
 }
 
 void Trash::render(SDL_Renderer* ren) const {

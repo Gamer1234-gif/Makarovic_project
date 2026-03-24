@@ -127,6 +127,9 @@ public:
             }
         }
     }
+
+private:
+    float speed = 1.0f;
 };
 
 class Boat {
@@ -171,8 +174,16 @@ public:
         y = newY;
     }
 
+    void setplayerInBoat(bool value) {
+        playerInBoat = value;
+    }
+
+    bool getplayerInBoat() const {
+        return playerInBoat;
+    }
+
 private:
     float speed = 5.0f;
-    bool moveUp = false, moveDown = false, moveLeft = false, moveRight = false;
+    bool moveUp = false, moveDown = false, moveLeft = false, moveRight = false, playerInBoat = false;
     int x, y;
 };
