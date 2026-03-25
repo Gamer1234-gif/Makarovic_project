@@ -13,6 +13,20 @@ public:
     void update();
     void render();
     void clean();
+    void setdeltaTime(float dt) {
+        deltaTime = dt;
+    }
+    float getdeltaTime() const {
+        return deltaTime;
+    }
+
+    float getlastTime() const {
+        return lastTime;
+    }
+
+    void setlastTime(Uint32 time) {
+        lastTime = time;
+    }
 
 private:
     SDL_Window* win = nullptr;
@@ -42,4 +56,6 @@ private:
     int enemiesRemaining = 0;
     int trashRemaining = 0;
     int friendsRemaining = 0;
+    Uint32 lastTime = 0;
+    float deltaTime = 0.0f;
 };

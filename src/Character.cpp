@@ -80,7 +80,7 @@ void Player::render(SDL_Renderer* ren) const {
     SDL_RenderFillRect(ren, &rect);
 }
 
-void Enemy::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid) {
+void Enemy::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float) {
     // Simple AI: move towards player or something, but for now, static
     // std::cout << "Enemy position: (" << x << ", " << y << ")\n";
 }
@@ -91,7 +91,7 @@ void Enemy::render(SDL_Renderer* ren) const {
     SDL_RenderFillRect(ren, &rect);
 }
 
-void Friend::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid) {
+void Friend::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) {
     // Simple AI: move towards player or something, but for now, static
     // std::cout << "Friend position: (" << x << ", " << y << ")\n";
 }
@@ -102,47 +102,62 @@ void Friend::render(SDL_Renderer* ren) const {
     SDL_RenderFillRect(ren, &rect);
 }
 
-void Trash::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid) {
-    int gridX = (x + 10) / 30;
-    int gridY = (y + 10) / 30;
+void Trash::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) {
+    timer += deltaTime;
+    if (timer >= 2.0f) {
+        timer = 0.0f;
 
-    if (gridY - 2 >= 0 && grid[gridY - 2][gridX] == 0) { // If on water, move randomly
-        int direction = rand() % 4;
-        switch (direction) {
-        case 0: y -= speed; break;
-        case 1: y += speed; break;
-        case 2: x -= speed; break;
-        case 3: x += speed; break;
+        int gridX = (x + 10) / 30;
+        int gridY = (y + 10) / 30;
+        std::vector<std::pair<int, int>> directions;
+
+        if (gridY - 2 >= 0 && grid[gridY - 2][gridX] == 0) {
+            directions.emplace_back(0, -1); // Up
+        }
+        if (gridY + 2 <= (int)grid.size() - 1 && grid[gridY + 2][gridX] == 0) {
+            directions.emplace_back(0, 1); // Down
+        }
+        if (gridX - 2 >= 0 && grid[gridY][gridX - 2] == 0) {
+            directions.emplace_back(-1, 0); // Left
+        }
+        if (gridX + 2 <= (int)grid[gridY].size() - 1 && grid[gridY][gridX + 2] == 0) {
+            directions.emplace_back(1, 0); // Right
+        }
+
+        if (!directions.empty()) {
+            auto [dx, dy] = directions[rand() % directions.size()];
+            dirX = dx;
+            dirY = dy;
         }
     }
 
-    if (gridY + 2 < grid.size() && grid[gridY + 2][gridX] == 0) { // If on water, move randomly
-        int direction = rand() % 4;
-        switch (direction) {
-        case 0: y -= speed; break;
-        case 1: y += speed; break;
-        case 2: x -= speed; break;
-        case 3: x += speed; break;
-        }
-    }
+    // Continuous motion in current direction
+    float newX = x + dirX * speed * deltaTime;
+    float newY = y + dirY * speed * deltaTime;
 
-    if (gridX - 2 >= 0 && grid[gridY][gridX - 2] == 0) { // If on water, move randomly
-        int direction = rand() % 4;
-        switch (direction) {
-        case 0: y -= speed; break;
-        case 1: y += speed; break;
-        case 2: x -= speed; break;
-        case 3: x += speed; break;
-        }
-    }
+    int newGridX = (newX + 10) / 30;
+    int newGridY = (newY + 10) / 30;
 
-    if (gridX + 2 < grid[gridY].size() && grid[gridY][gridX + 2] == 0) { // If on water, move randomly
-        int direction = rand() % 4;
-        switch (direction) {
-        case 0: y -= speed; break;
-        case 1: y += speed; break;
-        case 2: x -= speed; break;
-        case 3: x += speed; break;
+    if (newGridY >= 0 && newGridY < (int)grid.size() && newGridX >= 0 && newGridX < (int)grid[newGridY].size() &&
+        grid[newGridY][newGridX] == 0 && newX >= 0 && newX <= windowWidth - 20 && newY >= 0 &&
+        newY <= windowHeight - 20) {
+        x = newX;
+        y = newY;
+    } else {
+        // bounce back via a new random direction immediately
+        std::vector<std::pair<int, int>> validDirs;
+        int gridX = (x + 10) / 30;
+        int gridY = (y + 10) / 30;
+
+        if (gridY > 0 && grid[gridY - 1][gridX] == 0) validDirs.emplace_back(0, -1);
+        if (gridY < (int)grid.size() - 1 && grid[gridY + 1][gridX] == 0) validDirs.emplace_back(0, 1);
+        if (gridX > 0 && grid[gridY][gridX - 1] == 0) validDirs.emplace_back(-1, 0);
+        if (gridX < (int)grid[gridY].size() - 1 && grid[gridY][gridX + 1] == 0) validDirs.emplace_back(1, 0);
+
+        if (!validDirs.empty()) {
+            auto [dx, dy] = validDirs[rand() % validDirs.size()];
+            dirX = dx;
+            dirY = dy;
         }
     }
 }

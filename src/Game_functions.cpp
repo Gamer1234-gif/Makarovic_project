@@ -107,7 +107,7 @@ void Game::update() {
     player.update(windowWidth, windowHeight, grid, boat);
     player.Boundaries(windowWidth, windowHeight);
     for (auto& enemy : enemies) {
-        enemy.update(windowWidth, windowHeight, grid);
+        enemy.update(windowWidth, windowHeight, grid, deltaTime);
     }
 
     for (auto it = enemies.begin(); it != enemies.end();) {
@@ -159,7 +159,7 @@ void Game::update() {
     }
 
     for (auto& trashItem : trash) {
-        trashItem.update(windowWidth, windowHeight, grid);
+        trashItem.update(windowWidth, windowHeight, grid, deltaTime);
     }
 }
 
@@ -229,6 +229,9 @@ void Game::render() {
 
 void Game::run() {
     while (running) {
+        setdeltaTime((SDL_GetTicks() - getlastTime()) / 1000.0f);
+        setlastTime(SDL_GetTicks());
+
         handleEvents();
         update();
         render();

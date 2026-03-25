@@ -9,7 +9,9 @@ class Boat; // Forward declaration
 
 class Character {
 public:
-    virtual void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid) = 0;
+    virtual void update(
+        int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime
+    ) = 0;
     virtual void render(SDL_Renderer* ren) const = 0;
     virtual void Spawn(
         const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight
@@ -22,7 +24,7 @@ public:
         return SDL_Rect{(int)x, (int)y, 20, 20};
     };
 
-    float x, y;
+    float x, y, timer = 0.0f;
 };
 
 class Player {
@@ -71,7 +73,7 @@ private:
 
 class Enemy : public Character {
 public:
-    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid) override;
+    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) override;
     void render(SDL_Renderer* ren) const override;
     void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) override {
         while (true) {
@@ -91,7 +93,7 @@ public:
 
 class Friend : public Character {
 public:
-    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid) override;
+    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) override;
     void render(SDL_Renderer* ren) const override;
     void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) override {
         while (true) {
@@ -111,7 +113,7 @@ public:
 
 class Trash : public Character {
 public:
-    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid) override;
+    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) override;
     void render(SDL_Renderer* ren) const override;
     void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) override {
         while (true) {
@@ -122,6 +124,21 @@ public:
                 y = i * squareSize + 5;
                 if (x < windowWidth - 20 && y < windowHeight - 20) {
                     std::cout << "Trash spawned at: (" << x << ", " << y << ")\n";
+                    // Start with a random initial movement direction
+                    int dir = rand() % 4;
+                    if (dir == 0) {
+                        dirX = 0;
+                        dirY = -1;
+                    } else if (dir == 1) {
+                        dirX = 0;
+                        dirY = 1;
+                    } else if (dir == 2) {
+                        dirX = -1;
+                        dirY = 0;
+                    } else {
+                        dirX = 1;
+                        dirY = 0;
+                    }
                     return;
                 }
             }
@@ -129,7 +146,9 @@ public:
     }
 
 private:
-    float speed = 1.0f;
+    float speed = 20.0f;
+    int dirX = 0;
+    int dirY = 1;
 };
 
 class Boat {
