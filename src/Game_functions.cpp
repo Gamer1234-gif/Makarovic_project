@@ -114,12 +114,16 @@ void Game::update() {
         SDL_Rect pRect = player.getRect();
         SDL_Rect eRect = it->getRect();
 
-        if (SDL_HasIntersection(&pRect, &eRect)) {
+        if (SDL_HasIntersection(&pRect, &eRect) && !it->nearbyEnemy(enemies)) {
             std::cout << "Enemy destroyed!\n";
             it = enemies.erase(it);
             score++;
             enemiesRemaining--;
         } else {
+            if (SDL_HasIntersection(&pRect, &eRect) && it->nearbyEnemy(enemies)) {
+                std::cout << "Player hit by enemy!\n";
+                player.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
+            }
             ++it;
         }
     }

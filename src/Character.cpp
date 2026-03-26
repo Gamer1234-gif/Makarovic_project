@@ -78,6 +78,10 @@ void Player::render(SDL_Renderer* ren) const {
     SDL_SetRenderDrawColor(ren, 255, 255, 0, 255); // Yellow for player
     SDL_Rect rect = {static_cast<int>(x), static_cast<int>(y), 20, 20};
     SDL_RenderFillRect(ren, &rect);
+    if (!inBoat) {
+        SDL_SetRenderDrawColor(ren, 255, 255, 255, 50); // white circle
+        drawCircle(ren, x + 10, y + 10, 150);
+    }
 }
 
 void Enemy::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) {

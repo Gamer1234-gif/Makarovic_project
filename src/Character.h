@@ -65,6 +65,16 @@ public:
         y = newY;
     }
 
+    void drawCircle(SDL_Renderer* ren, int centerX, int centerY, int radius) const {
+        for (int w = -radius; w < radius; w++) {
+            for (int h = -radius; h < radius; h++) {
+                if (w * w + h * h >= radius * radius - radius && w * w + h * h <= radius * radius + radius) {
+                    SDL_RenderDrawPoint(ren, centerX + w, centerY + h);
+                }
+            }
+        }
+    }
+
 private:
     int x, y;
     bool inBoat = false, moveUp = false, moveDown = false, moveLeft = false, moveRight = false;
@@ -102,6 +112,18 @@ public:
                 }
             }
         }
+    }
+    bool nearbyEnemy(const std::vector<Enemy>& enemies) const {
+        for (const auto& enemy : enemies) {
+            if (&enemy != this) {
+                float distX = x - enemy.x;
+                float distY = y - enemy.y;
+                if (distX * distX + distY * distY < 22500) { // 150 pixels radius, 150^2 = 22500
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
 private:
