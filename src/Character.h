@@ -84,11 +84,30 @@ public:
                 y = i * squareSize + 5;
                 if (x < windowWidth - 20 && y < windowHeight - 20) {
                     std::cout << "Enemy spawned at: (" << x << ", " << y << ")\n";
+                    int dir = rand() % 4;
+                    if (dir == 0) {
+                        dirX = 0;
+                        dirY = -1;
+                    } else if (dir == 1) {
+                        dirX = 0;
+                        dirY = 1;
+                    } else if (dir == 2) {
+                        dirX = -1;
+                        dirY = 0;
+                    } else {
+                        dirX = 1;
+                        dirY = 0;
+                    }
                     return;
                 }
             }
         }
     }
+
+private:
+    float speed = 15.0f;
+    int dirX = 0;
+    int dirY = 0;
 };
 
 class Friend : public Character {

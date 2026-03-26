@@ -80,9 +80,35 @@ void Player::render(SDL_Renderer* ren) const {
     SDL_RenderFillRect(ren, &rect);
 }
 
-void Enemy::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float) {
-    // Simple AI: move towards player or something, but for now, static
-    // std::cout << "Enemy position: (" << x << ", " << y << ")\n";
+void Enemy::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) {
+    float newX = x + dirX * speed * deltaTime;
+    float newY = y + dirY * speed * deltaTime;
+
+    int newGridX = (newX + 10) / 30;
+    int newGridY = (newY + 10) / 30;
+
+    if (newGridY >= 0 && newGridY < (int)grid.size() && newGridX >= 0 && newGridX < (int)grid[newGridY].size() &&
+        grid[newGridY][newGridX] == 1 && newX >= 0 && newX <= windowWidth - 20 && newY >= 0 &&
+        newY <= windowHeight - 20) {
+        x = newX;
+        y = newY;
+    } else {
+        // bounce back via a new random direction immediately
+        std::vector<std::pair<int, int>> validDirs;
+        int gridX = (x + 10) / 30;
+        int gridY = (y + 10) / 30;
+
+        if (gridY > 0 && grid[gridY - 1][gridX] == 1) validDirs.emplace_back(0, -1);
+        if (gridY < (int)grid.size() - 1 && grid[gridY + 1][gridX] == 1) validDirs.emplace_back(0, 1);
+        if (gridX > 0 && grid[gridY][gridX - 1] == 1) validDirs.emplace_back(-1, 0);
+        if (gridX < (int)grid[gridY].size() - 1 && grid[gridY][gridX + 1] == 1) validDirs.emplace_back(1, 0);
+
+        if (!validDirs.empty()) {
+            auto [dx, dy] = validDirs[rand() % validDirs.size()];
+            dirX = dx;
+            dirY = dy;
+        }
+    }
 }
 
 void Enemy::render(SDL_Renderer* ren) const {
