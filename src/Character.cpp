@@ -121,6 +121,42 @@ void Enemy::render(SDL_Renderer* ren) const {
     SDL_RenderFillRect(ren, &rect);
 }
 
+bool Enemy::checkRight(const std::vector<std::vector<int>>& grid) const {
+    int gridX = (x + 10) / 30;
+    int gridY = (y + 10) / 30;
+    if (gridX < (int)grid[gridY].size() - 1 && grid[gridY][gridX + 1] == 0) {
+        return true;
+    }
+    return false;
+}
+
+bool Enemy::checkLeft(const std::vector<std::vector<int>>& grid) const {
+    int gridX = (x + 10) / 30;
+    int gridY = (y + 10) / 30;
+    if (gridX > 0 && grid[gridY][gridX - 1] == 0) {
+        return true;
+    }
+    return false;
+}
+
+bool Enemy::checkUp(const std::vector<std::vector<int>>& grid) const {
+    int gridX = (x + 10) / 30;
+    int gridY = (y + 10) / 30;
+    if (gridY > 0 && grid[gridY - 1][gridX] == 0) {
+        return true;
+    }
+    return false;
+}
+
+bool Enemy::checkDown(const std::vector<std::vector<int>>& grid) const {
+    int gridX = (x + 10) / 30;
+    int gridY = (y + 10) / 30;
+    if (gridY < (int)grid.size() - 1 && grid[gridY + 1][gridX] == 0) {
+        return true;
+    }
+    return false;
+}
+
 void Friend::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) {
     // Simple AI: move towards player or something, but for now, static
     // std::cout << "Friend position: (" << x << ", " << y << ")\n";

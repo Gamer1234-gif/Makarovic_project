@@ -4,6 +4,8 @@ $ucrt = "C:\msys64\ucrt64\bin"
 $env:Path = "$ucrt;$env:Path"
 
 cmake -S . -B build -G "Ninja" `
+  -DBUILD_SHARED_LIBS=OFF `
+  -DBUILD_STATIC=ON `
   -DCMAKE_BUILD_TYPE=Debug `
   -DCMAKE_C_COMPILER="$ucrt\gcc.exe" `
   -DCMAKE_CXX_COMPILER="$ucrt\g++.exe" `

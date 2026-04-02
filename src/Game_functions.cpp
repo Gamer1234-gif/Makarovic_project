@@ -47,10 +47,10 @@ bool Game::init() {
     player.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
     boat.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
 
-    // Initialize enemy in the middle of the top left quadrant
     for (int i = 0; i < 10; ++i) {
         Enemy e;
         e.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
+        e.giveTrash();
         enemies.push_back(e);
         enemiesRemaining++;
     }
@@ -107,7 +107,36 @@ void Game::update() {
     player.update(windowWidth, windowHeight, grid, boat);
     player.Boundaries(windowWidth, windowHeight);
     for (auto& enemy : enemies) {
+        enemy.Enemy_timer(deltaTime);
+        Trash t;
         enemy.update(windowWidth, windowHeight, grid, deltaTime);
+        if (enemy.checkRight(grid) && enemy.getHasTrash()) {
+            t.SpawnFromEnemy(enemy, grid, windowWidth, windowHeight);
+            trash.push_back(t);
+            trashRemaining++;
+            enemy.setHasTrash(false); // Ensure trash is only spawned once per enemy
+        }
+
+        if (enemy.checkLeft(grid) && enemy.getHasTrash()) {
+            t.SpawnFromEnemy(enemy, grid, windowWidth, windowHeight);
+            trash.push_back(t);
+            trashRemaining++;
+            enemy.setHasTrash(false); // Ensure trash is only spawned once per enemy
+        }
+
+        if (enemy.checkUp(grid) && enemy.getHasTrash()) {
+            t.SpawnFromEnemy(enemy, grid, windowWidth, windowHeight);
+            trash.push_back(t);
+            trashRemaining++;
+            enemy.setHasTrash(false); // Ensure trash is only spawned once per enemy
+        }
+
+        if (enemy.checkDown(grid) && enemy.getHasTrash()) {
+            t.SpawnFromEnemy(enemy, grid, windowWidth, windowHeight);
+            trash.push_back(t);
+            trashRemaining++;
+            enemy.setHasTrash(false); // Ensure trash is only spawned once per enemy
+        }
     }
 
     for (auto it = enemies.begin(); it != enemies.end();) {
@@ -123,6 +152,7 @@ void Game::update() {
             if (SDL_HasIntersection(&pRect, &eRect) && it->nearbyEnemy(enemies)) {
                 std::cout << "Player hit by enemy!\n";
                 player.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
+                boat.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
             }
             ++it;
         }
@@ -186,7 +216,9 @@ void Game::render() {
     player.render(ren);
     boat.render(ren);
     for (const auto& enemy : enemies) {
+        // if (player.nearbyEnemy(enemy)) {
         enemy.render(ren);
+        //}
     }
 
     for (const auto& friend_ : friends) {
@@ -217,7 +249,9 @@ void Game::render() {
 
     SDL_RenderPresent(ren);
     for (const auto& enemy : enemies) {
-        enemy.render(ren);
+        if (player.nearbyEnemy(enemy)) {
+            enemy.render(ren);
+        }
     }
 
     for (const auto& friend_ : friends) {
