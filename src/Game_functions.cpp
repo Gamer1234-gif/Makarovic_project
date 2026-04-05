@@ -5,6 +5,15 @@
 
 
 bool Game::init() {
+    levels.push_back(
+        {10, 40, 10, 15.0f, 15.0f, 15.0f, 20.0f, 16305}
+    ); // Level 1: 10 enemies, 40 trash, 10 friends, enemy speed 15, trash speed 15, player speed 15, friend speed 20,
+       // seed 16305
+    levels.push_back(
+        {20, 60, 5, 25.0f, 30.0f, 5.0f, 5.0f, 16305}
+    ); // Level 2: 20 enemies, 60 trash, 5 friends, enemy speed 25, trash speed 30, player speed 5, friend speed 5, seed
+       // 16305
+
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
         std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
         return false;
@@ -106,36 +115,45 @@ void Game::handleEvents() {
 void Game::update() {
     player.update(windowWidth, windowHeight, grid, boat);
     player.Boundaries(windowWidth, windowHeight);
+    for (auto& friend_ : friends) {
+        friend_.update(windowWidth, windowHeight, grid, deltaTime);
+    }
+
     for (auto& enemy : enemies) {
         enemy.Enemy_timer(deltaTime);
+        enemy.updateTrashDropTimer(deltaTime);
         Trash t;
         enemy.update(windowWidth, windowHeight, grid, deltaTime);
-        if (enemy.checkRight(grid) && enemy.getHasTrash()) {
+        if (enemy.checkRight(grid) && enemy.getHasTrash() && enemy.canDropTrash()) {
             t.SpawnFromEnemy(enemy, grid, windowWidth, windowHeight);
             trash.push_back(t);
             trashRemaining++;
-            enemy.setHasTrash(false); // Ensure trash is only spawned once per enemy
+            enemy.setHasTrash(false);
+            enemy.resetTrashDropTimer();
         }
 
-        if (enemy.checkLeft(grid) && enemy.getHasTrash()) {
+        if (enemy.checkLeft(grid) && enemy.getHasTrash() && enemy.canDropTrash()) {
             t.SpawnFromEnemy(enemy, grid, windowWidth, windowHeight);
             trash.push_back(t);
             trashRemaining++;
-            enemy.setHasTrash(false); // Ensure trash is only spawned once per enemy
+            enemy.setHasTrash(false);
+            enemy.resetTrashDropTimer();
         }
 
-        if (enemy.checkUp(grid) && enemy.getHasTrash()) {
+        if (enemy.checkUp(grid) && enemy.getHasTrash() && enemy.canDropTrash()) {
             t.SpawnFromEnemy(enemy, grid, windowWidth, windowHeight);
             trash.push_back(t);
             trashRemaining++;
-            enemy.setHasTrash(false); // Ensure trash is only spawned once per enemy
+            enemy.setHasTrash(false);
+            enemy.resetTrashDropTimer();
         }
 
-        if (enemy.checkDown(grid) && enemy.getHasTrash()) {
+        if (enemy.checkDown(grid) && enemy.getHasTrash() && enemy.canDropTrash()) {
             t.SpawnFromEnemy(enemy, grid, windowWidth, windowHeight);
             trash.push_back(t);
             trashRemaining++;
-            enemy.setHasTrash(false); // Ensure trash is only spawned once per enemy
+            enemy.setHasTrash(false);
+            enemy.resetTrashDropTimer();
         }
     }
 
@@ -184,6 +202,38 @@ void Game::update() {
         } else {
             ++it;
         }
+    }
+
+    for (auto it = friends.begin(); it != friends.end();) {
+        SDL_Rect fRect = it->getRect();
+        for (auto it_enemy = enemies.begin(); it_enemy != enemies.end();) {
+            SDL_Rect eRect = it_enemy->getRect();
+            if (SDL_HasIntersection(&fRect, &eRect)) {
+                std::cout << "Friend hit enemy!\n";
+                it_enemy = enemies.erase(it_enemy);
+                score++;
+                enemiesRemaining--;
+                break;
+            }
+            ++it_enemy;
+        }
+        ++it;
+    }
+
+    for (auto it = friends.begin(); it != friends.end();) {
+        SDL_Rect fRect = it->getRect();
+        for (auto it_trash = trash.begin(); it_trash != trash.end();) {
+            SDL_Rect tRect = it_trash->getRect();
+            if (SDL_HasIntersection(&fRect, &tRect)) {
+                std::cout << "Friend hit trash!\n";
+                it_trash = trash.erase(it_trash);
+                score++;
+                trashRemaining--;
+                break;
+            }
+            ++it_trash;
+        }
+        ++it;
     }
 
     if (player.getInBoat()) {

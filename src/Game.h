@@ -5,6 +5,17 @@
 #include <SDL2/SDL_ttf.h>
 #include <vector>
 
+struct Level {
+    int enemyCount;
+    int trashCount;
+    int friendCount;
+    float enemySpeed;
+    float trashSpeed;
+    float playerSpeed;
+    float friendSpeed;
+    int seed;
+};
+
 class Game {
 public:
     bool init();
@@ -58,4 +69,7 @@ private:
     int friendsRemaining = 0;
     Uint32 lastTime = 0;
     float deltaTime = 0.0f;
+
+    std::vector<Level> levels;
+    int currentLevel = 0;
 };

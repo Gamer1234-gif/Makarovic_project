@@ -147,6 +147,7 @@ public:
     void giveTrash() {
         int chance = rand() % 4;
         if (chance == 2) {
+            std::cout << "Enemy at (" << x << ", " << y << ") given trash.\n";
             hasTrash = true; // 25% chance to spawn with trash
         }
     }
@@ -170,12 +171,25 @@ public:
         }
     }
 
+    void updateTrashDropTimer(float deltaTime) {
+        trashDropTimer += deltaTime;
+    }
+
+    bool canDropTrash() const {
+        return trashDropTimer >= 3.0f; // Can drop trash every 3 seconds
+    }
+
+    void resetTrashDropTimer() {
+        trashDropTimer = 0.0f;
+    }
+
 private:
     float speed = 15.0f;
     int dirX = 0;
     int dirY = 0;
     bool hasTrash = false;
     float timer = 0.0f;
+    float trashDropTimer = 0.0f;
 };
 
 class Friend : public Character {
@@ -186,16 +200,33 @@ public:
         while (true) {
             size_t i = rand() % grid.size();
             size_t j = rand() % grid[i].size();
-            if (grid[i][j] == 1) { // Spawn on land
-                x = j * squareSize + 5;
-                y = i * squareSize + 5;
-                if (x < windowWidth - 20 && y < windowHeight - 20) {
-                    std::cout << "Friend spawned at: (" << x << ", " << y << ")\n";
-                    return;
+            x = j * squareSize + 5;
+            y = i * squareSize + 5;
+            if (x < windowWidth - 20 && y < windowHeight - 20) {
+                std::cout << "Friend spawned at: (" << x << ", " << y << ")\n";
+                int dir = rand() % 4;
+                if (dir == 0) {
+                    dirX = 0;
+                    dirY = -1;
+                } else if (dir == 1) {
+                    dirX = 0;
+                    dirY = 1;
+                } else if (dir == 2) {
+                    dirX = -1;
+                    dirY = 0;
+                } else {
+                    dirX = 1;
+                    dirY = 0;
                 }
+                return;
             }
         }
     }
+
+private:
+    float speed = 20.0f;
+    int dirX = 0;
+    int dirY = 0;
 };
 
 class Trash : public Character {

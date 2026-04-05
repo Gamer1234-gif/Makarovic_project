@@ -158,8 +158,63 @@ bool Enemy::checkDown(const std::vector<std::vector<int>>& grid) const {
 }
 
 void Friend::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) {
-    // Simple AI: move towards player or something, but for now, static
-    // std::cout << "Friend position: (" << x << ", " << y << ")\n";
+    timer += deltaTime;
+    if (timer >= 2.0f) {
+        timer = 0.0f;
+
+        int gridX = (x + 10) / 30;
+        int gridY = (y + 10) / 30;
+        std::vector<std::pair<int, int>> directions;
+
+        if (gridX >= 0 && gridX < (int)grid[0].size() && gridY >= 0 && gridY < (int)grid.size()) {
+            if (gridY - 2 >= 0) {
+                directions.emplace_back(0, -1); // Up
+            }
+            if (gridY + 2 < (int)grid.size()) {
+                directions.emplace_back(0, 1); // Down
+            }
+            if (gridX - 2 >= 0) {
+                directions.emplace_back(-1, 0); // Left
+            }
+            if (gridX + 2 < (int)grid[gridY].size()) {
+                directions.emplace_back(1, 0); // Right
+            }
+        }
+
+        if (!directions.empty()) {
+            auto [dx, dy] = directions[rand() % directions.size()];
+            dirX = dx;
+            dirY = dy;
+        }
+    }
+
+    float newX = x + dirX * speed * deltaTime;
+    float newY = y + dirY * speed * deltaTime;
+
+    int newGridX = (newX + 10) / 30;
+    int newGridY = (newY + 10) / 30;
+
+    if (newGridY >= 0 && newGridY < (int)grid.size() && newGridX >= 0 && newGridX < (int)grid[newGridY].size() &&
+        newX >= 0 && newX <= windowWidth - 20 && newY >= 0 && newY <= windowHeight - 20) {
+        x = newX;
+        y = newY;
+    } else {
+        // bounce back via a new random direction immediately
+        std::vector<std::pair<int, int>> validDirs;
+        int gridX = (x + 10) / 30;
+        int gridY = (y + 10) / 30;
+
+        if (gridY > 0) validDirs.emplace_back(0, -1);
+        if (gridY < (int)grid.size() - 1) validDirs.emplace_back(0, 1);
+        if (gridX > 0) validDirs.emplace_back(-1, 0);
+        if (gridX < (int)grid[gridY].size() - 1) validDirs.emplace_back(1, 0);
+
+        if (!validDirs.empty()) {
+            auto [dx, dy] = validDirs[rand() % validDirs.size()];
+            dirX = dx;
+            dirY = dy;
+        }
+    }
 }
 
 void Friend::render(SDL_Renderer* ren) const {
@@ -177,17 +232,19 @@ void Trash::update(int windowWidth, int windowHeight, const std::vector<std::vec
         int gridY = (y + 10) / 30;
         std::vector<std::pair<int, int>> directions;
 
-        if (gridY - 2 >= 0 && grid[gridY - 2][gridX] == 0) {
-            directions.emplace_back(0, -1); // Up
-        }
-        if (gridY + 2 <= (int)grid.size() - 1 && grid[gridY + 2][gridX] == 0) {
-            directions.emplace_back(0, 1); // Down
-        }
-        if (gridX - 2 >= 0 && grid[gridY][gridX - 2] == 0) {
-            directions.emplace_back(-1, 0); // Left
-        }
-        if (gridX + 2 <= (int)grid[gridY].size() - 1 && grid[gridY][gridX + 2] == 0) {
-            directions.emplace_back(1, 0); // Right
+        if (gridX >= 0 && gridX < (int)grid[0].size() && gridY >= 0 && gridY < (int)grid.size()) {
+            if (gridY - 2 >= 0 && grid[gridY - 2][gridX] == 0) {
+                directions.emplace_back(0, -1); // Up
+            }
+            if (gridY + 2 < (int)grid.size() && grid[gridY + 2][gridX] == 0) {
+                directions.emplace_back(0, 1); // Down
+            }
+            if (gridX - 2 >= 0 && grid[gridY][gridX - 2] == 0) {
+                directions.emplace_back(-1, 0); // Left
+            }
+            if (gridX + 2 < (int)grid[gridY].size() && grid[gridY][gridX + 2] == 0) {
+                directions.emplace_back(1, 0); // Right
+            }
         }
 
         if (!directions.empty()) {
@@ -215,10 +272,13 @@ void Trash::update(int windowWidth, int windowHeight, const std::vector<std::vec
         int gridX = (x + 10) / 30;
         int gridY = (y + 10) / 30;
 
-        if (gridY > 0 && grid[gridY - 1][gridX] == 0) validDirs.emplace_back(0, -1);
-        if (gridY < (int)grid.size() - 1 && grid[gridY + 1][gridX] == 0) validDirs.emplace_back(0, 1);
-        if (gridX > 0 && grid[gridY][gridX - 1] == 0) validDirs.emplace_back(-1, 0);
-        if (gridX < (int)grid[gridY].size() - 1 && grid[gridY][gridX + 1] == 0) validDirs.emplace_back(1, 0);
+        // Validate grid indices before accessing
+        if (gridX >= 0 && gridX < (int)grid[0].size() && gridY >= 0 && gridY < (int)grid.size()) {
+            if (gridY > 0 && grid[gridY - 1][gridX] == 0) validDirs.emplace_back(0, -1);
+            if (gridY < (int)grid.size() - 1 && grid[gridY + 1][gridX] == 0) validDirs.emplace_back(0, 1);
+            if (gridX > 0 && grid[gridY][gridX - 1] == 0) validDirs.emplace_back(-1, 0);
+            if (gridX < (int)grid[gridY].size() - 1 && grid[gridY][gridX + 1] == 0) validDirs.emplace_back(1, 0);
+        }
 
         if (!validDirs.empty()) {
             auto [dx, dy] = validDirs[rand() % validDirs.size()];
