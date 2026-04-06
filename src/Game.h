@@ -19,6 +19,7 @@ struct Level {
 class Game {
 public:
     bool init();
+    void loadLevel(int levelIndex);
     void run();
     void handleEvents();
     void update();

@@ -31,45 +31,53 @@ void Player::boatExitInput(const SDL_Event& e, const std::vector<std::vector<int
     }
 }
 
-void Player::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, const Boat& boat) {
+void Player::update(
+    int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, const Boat& boat, float deltaTime
+) {
     // Calculate boat's grid position
     int boatGridX = (boat.getX() + 10) / 30;
     int boatGridY = (boat.getY() + 10) / 30;
 
-    if (moveUp && y - speed >= 0) {
-        int centerX = x + 10;
-        int nextY = (y - speed + 10) / 30;
+    float movement = speed * deltaTime;
+
+    if (moveUp && y - movement >= 0) {
+        int centerX = (int)(x + 10);
+        int nextY = (int)((y - movement + 10) / 30);
         int gridX = centerX / 30;
 
-        if (grid[nextY][gridX] == 1 || (nextY == boatGridY && gridX == boatGridX)) {
-            y -= speed;
+        if (nextY >= 0 && nextY < (int)grid.size() && gridX >= 0 && gridX < (int)grid[nextY].size() &&
+            (grid[nextY][gridX] == 1 || (nextY == boatGridY && gridX == boatGridX))) {
+            y -= movement;
         }
     }
-    if (moveDown && y + speed <= windowHeight - 20) {
-        int centerX = x + 10;
-        int nextY = (y + speed + 10) / 30;
+    if (moveDown && y + movement <= windowHeight - 20) {
+        int centerX = (int)(x + 10);
+        int nextY = (int)((y + movement + 10) / 30);
         int gridX = centerX / 30;
 
-        if (grid[nextY][gridX] == 1 || (nextY == boatGridY && gridX == boatGridX)) {
-            y += speed;
+        if (nextY >= 0 && nextY < (int)grid.size() && gridX >= 0 && gridX < (int)grid[nextY].size() &&
+            (grid[nextY][gridX] == 1 || (nextY == boatGridY && gridX == boatGridX))) {
+            y += movement;
         }
     }
-    if (moveLeft && x - speed >= 0) {
-        int centerY = y + 10;
-        int nextX = (x - speed + 10) / 30;
+    if (moveLeft && x - movement >= 0) {
+        int centerY = (int)(y + 10);
+        int nextX = (int)((x - movement + 10) / 30);
         int gridY = centerY / 30;
 
-        if (grid[gridY][nextX] == 1 || (gridY == boatGridY && nextX == boatGridX)) {
-            x -= speed;
+        if (gridY >= 0 && gridY < (int)grid.size() && nextX >= 0 && nextX < (int)grid[gridY].size() &&
+            (grid[gridY][nextX] == 1 || (gridY == boatGridY && nextX == boatGridX))) {
+            x -= movement;
         }
     }
-    if (moveRight && x + speed <= windowWidth - 20) {
-        int centerY = y + 10;
-        int nextX = (x + speed + 10) / 30;
+    if (moveRight && x + movement <= windowWidth - 20) {
+        int centerY = (int)(y + 10);
+        int nextX = (int)((x + movement + 10) / 30);
         int gridY = centerY / 30;
 
-        if (grid[gridY][nextX] == 1 || (gridY == boatGridY && nextX == boatGridX)) {
-            x += speed;
+        if (gridY >= 0 && gridY < (int)grid.size() && nextX >= 0 && nextX < (int)grid[gridY].size() &&
+            (grid[gridY][nextX] == 1 || (gridY == boatGridY && nextX == boatGridX))) {
+            x += movement;
         }
     }
 }
@@ -82,6 +90,28 @@ void Player::render(SDL_Renderer* ren) const {
         SDL_SetRenderDrawColor(ren, 255, 255, 255, 50); // white circle
         drawCircle(ren, x + 10, y + 10, 150);
     }
+}
+
+int Player::nearbyEnemycount(const std::vector<Enemy>& enemies) const {
+    int stev = 0;
+
+    for (const auto& enemy : enemies) {
+        float distX = x - enemy.getX();
+        float distY = y - enemy.getY();
+
+        if (distX * distX + distY * distY < 22500) {
+            stev++;
+        }
+    }
+
+    return stev;
+}
+
+bool Player::nearbyEnemyRender(const Enemy& enemy) const {
+    float distX = x - enemy.getX();
+    float distY = y - enemy.getY();
+
+    return distX * distX + distY * distY < 22500;
 }
 
 void Enemy::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) {
@@ -314,29 +344,38 @@ void Boat::handleInput(const SDL_Event& e) {
     }
 }
 
-void Boat::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid) {
-    int gridX = (x + 10) / 30;
-    int gridY = (y + 10) / 30;
+void Boat::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) {
+    float movement = speed * deltaTime;
+    int gridX = (int)((x + 10) / 30);
+    int gridY = (int)((y + 10) / 30);
 
-    if (moveUp && y - speed >= 0) {
-        if (grid[(y - speed + 10) / 30][gridX] == 0) {
-            y -= speed;
+    if (moveUp && y - movement >= 0) {
+        int nextY = (int)(((y - movement) + 10) / 30);
+        if (nextY >= 0 && nextY < (int)grid.size() && gridX >= 0 && gridX < (int)grid[nextY].size() &&
+            grid[nextY][gridX] == 0) {
+            y -= movement;
         }
     }
 
-    if (moveDown && y + speed <= windowHeight - 20) {
-        if (grid[(y + speed + 10) / 30][gridX] == 0) {
-            y += speed;
+    if (moveDown && y + movement < windowHeight) {
+        int nextY = (int)(((y + movement) + 10) / 30);
+        if (nextY >= 0 && nextY < (int)grid.size() && gridX >= 0 && gridX < (int)grid[nextY].size() &&
+            grid[nextY][gridX] == 0) {
+            y += movement;
         }
     }
-    if (moveLeft && x - speed >= 0) {
-        if (grid[gridY][(x - speed + 10) / 30] == 0) {
-            x -= speed;
+    if (moveLeft && x - movement >= 0) {
+        int nextX = (int)(((x - movement) + 10) / 30);
+        if (gridY >= 0 && gridY < (int)grid.size() && nextX >= 0 && nextX < (int)grid[gridY].size() &&
+            grid[gridY][nextX] == 0) {
+            x -= movement;
         }
     }
-    if (moveRight && x + speed <= windowWidth - 20) {
-        if (grid[gridY][(x + speed + 10) / 30] == 0) {
-            x += speed;
+    if (moveRight && x + movement < windowWidth) {
+        int nextX = (int)(((x + movement) + 10) / 30);
+        if (gridY >= 0 && gridY < (int)grid.size() && nextX >= 0 && nextX < (int)grid[gridY].size() &&
+            grid[gridY][nextX] == 0) {
+            x += movement;
         }
     }
 }

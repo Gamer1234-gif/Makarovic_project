@@ -3,16 +3,71 @@
 #include <SDL2/SDL_ttf.h>
 #include <iostream>
 
+void Game::loadLevel(int levelIndex) {
+    if (levelIndex < 0 || levelIndex >= static_cast<int>(levels.size())) {
+        std::cerr << "Invalid level index: " << levelIndex << "\n";
+        return;
+    }
+
+    const Level& level = levels[levelIndex];
+    noise = PerlinNoise(level.seed);
+
+    grid.clear();
+    grid.resize(GRID_SIZE, std::vector<int>(GRID_SIZE));
+
+    for (int i = 0; i < GRID_SIZE; ++i) {
+        for (int j = 0; j < GRID_SIZE; ++j) {
+            double n = noise.noise(i * frequency, j * frequency);
+            n = (n + 1.0) / 2.0;
+            grid[i][j] = (n > threshold) ? 1 : 0;
+        }
+    }
+
+    boat.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
+    player.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
+    player.setSpeed(level.playerSpeed);
+    boat.setSpeed(level.playerSpeed);
+
+    enemies.clear();
+    for (int i = 0; i < level.enemyCount; ++i) {
+        Enemy e;
+        e.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
+        e.setSpeed(level.enemySpeed);
+        e.giveTrash();
+        enemies.push_back(e);
+    }
+    enemiesRemaining = level.enemyCount;
+
+    trash.clear();
+    for (int i = 0; i < level.trashCount; ++i) {
+        Trash t;
+        t.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
+        t.setSpeed(level.trashSpeed);
+        trash.push_back(t);
+    }
+    trashRemaining = level.trashCount;
+
+    friends.clear();
+    for (int i = 0; i < level.friendCount; ++i) {
+        Friend f;
+        f.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
+        f.setSpeed(level.friendSpeed);
+        friends.push_back(f);
+    }
+    friendsRemaining = level.friendCount;
+
+    score = 0;
+}
 
 bool Game::init() {
     levels.push_back(
-        {10, 40, 10, 15.0f, 15.0f, 15.0f, 20.0f, 16305}
-    ); // Level 1: 10 enemies, 40 trash, 10 friends, enemy speed 15, trash speed 15, player speed 15, friend speed 20,
-       // seed 16305
+        {10, 40, 10, 80.0f, 80.0f, 85.0f, 85.0f, 16305}
+    ); // Level 1: 10 enemies, 40 trash, 10 friends, enemy speed 80, trash speed 80, player speed 85, friend speed
+       // 85, seed 16305
     levels.push_back(
-        {20, 60, 5, 25.0f, 30.0f, 5.0f, 5.0f, 16305}
-    ); // Level 2: 20 enemies, 60 trash, 5 friends, enemy speed 25, trash speed 30, player speed 5, friend speed 5, seed
-       // 16305
+        {20, 60, 5, 200.0f, 200.0f, 50.0f, 50.0f, 18320}
+    ); // Level 2: 20 enemies, 60 trash, 5 friends, enemy speed 200, trash speed 200, player speed 50, friend speed
+       // 50, seed 18320
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
         std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
@@ -42,42 +97,7 @@ bool Game::init() {
 
     srand(time(NULL)); // Seed random number generator
 
-    // GRID GENERATION
-    grid.resize(GRID_SIZE, std::vector<int>(GRID_SIZE));
-
-    for (int i = 0; i < GRID_SIZE; ++i) {
-        for (int j = 0; j < GRID_SIZE; ++j) {
-            double n = noise.noise(i * frequency, j * frequency);
-            n = (n + 1.0) / 2.0;
-            grid[i][j] = (n > threshold) ? 1 : 0;
-        }
-    }
-
-    player.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
-    boat.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
-
-    for (int i = 0; i < 10; ++i) {
-        Enemy e;
-        e.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
-        e.giveTrash();
-        enemies.push_back(e);
-        enemiesRemaining++;
-    }
-
-    for (int i = 0; i < GRID_SIZE / 2; ++i) {
-        Trash t;
-        t.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
-        trash.push_back(t);
-        trashRemaining++;
-    }
-
-    for (int i = 0; i < 10; ++i) {
-        Friend f;
-        f.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
-        friends.push_back(f);
-        friendsRemaining++;
-    }
-
+    loadLevel(currentLevel);
 
     running = true;
     return true;
@@ -113,7 +133,7 @@ void Game::handleEvents() {
 }
 
 void Game::update() {
-    player.update(windowWidth, windowHeight, grid, boat);
+    player.update(windowWidth, windowHeight, grid, boat, deltaTime);
     player.Boundaries(windowWidth, windowHeight);
     for (auto& friend_ : friends) {
         friend_.update(windowWidth, windowHeight, grid, deltaTime);
@@ -237,13 +257,23 @@ void Game::update() {
     }
 
     if (player.getInBoat()) {
-        boat.update(windowWidth, windowHeight, grid);
+        boat.update(windowWidth, windowHeight, grid, deltaTime);
         player.setX(boat.getX());
         player.setY(boat.getY());
     }
 
     for (auto& trashItem : trash) {
         trashItem.update(windowWidth, windowHeight, grid, deltaTime);
+    }
+
+    if (enemiesRemaining == 0 && trashRemaining == 0) {
+        currentLevel++;
+        if (currentLevel < static_cast<int>(levels.size())) {
+            loadLevel(currentLevel);
+        } else {
+            std::cout << "Congratulations! You've completed all levels!\n";
+            running = false;
+        }
     }
 }
 
@@ -266,7 +296,7 @@ void Game::render() {
     player.render(ren);
     boat.render(ren);
     for (const auto& enemy : enemies) {
-        // if (player.nearbyEnemy(enemy)) {
+        // if (player.nearbyEnemyRender(enemy)) {
         enemy.render(ren);
         //}
     }
@@ -299,7 +329,7 @@ void Game::render() {
 
     SDL_RenderPresent(ren);
     for (const auto& enemy : enemies) {
-        if (player.nearbyEnemy(enemy)) {
+        if (player.nearbyEnemyRender(enemy)) {
             enemy.render(ren);
         }
     }
@@ -316,6 +346,7 @@ void Game::render() {
 }
 
 void Game::run() {
+    setlastTime(SDL_GetTicks()); // Initialize lastTime on first frame
     while (running) {
         setdeltaTime((SDL_GetTicks() - getlastTime()) / 1000.0f);
         setlastTime(SDL_GetTicks());

@@ -5,7 +5,9 @@
 #include <iostream>
 #include <vector>
 
-class Boat; // Forward declaration
+class Boat;  // Forward declaration
+class Trash; // Forward declaration
+class Enemy; // Forward declaration
 
 class Character {
 public:
@@ -24,24 +26,36 @@ public:
         return SDL_Rect{(int)x, (int)y, 20, 20};
     };
 
-    float x, y, timer = 0.0f;
+    void setSpeed(float newSpeed) {
+        speed = newSpeed;
+    }
+
+    float x, y, timer = 0.0f, speed;
 };
 
 class Player {
 public:
     void handleInput(const SDL_Event& e);
     void boatExitInput(const SDL_Event& e, const std::vector<std::vector<int>>& grid, const Boat& boat);
-    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, const Boat& boat);
+    void update(
+        int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, const Boat& boat, float deltaTime
+    );
     void render(SDL_Renderer* ren) const;
     void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) {
         x = 100;
         y = 100;
+        if (grid[3][3] == 0) { // Spawn on water
+            x = 3 * squareSize + 5;
+            y = 3 * squareSize + 5;
+            inBoat = true;
+            std::cout << "Player spawned in boat at: (" << x << ", " << y << ")\n";
+        }
     };
     void Boundaries(int windowWidth, int windowHeight) {
         if (x < 0) x = 0;
         if (y < 0) y = 0;
-        if (x > windowWidth - 20) x = windowWidth - 20;
-        if (y > windowHeight - 20) y = windowHeight - 20;
+        if (x > windowWidth - 20) x = (float)(windowWidth - 20);
+        if (y > windowHeight - 20) y = (float)(windowHeight - 20);
     };
     SDL_Rect getRect() const {
         return SDL_Rect{(int)x, (int)y, 20, 20};
@@ -53,16 +67,16 @@ public:
         return inBoat;
     }
     int getX() const {
-        return x;
+        return (int)x;
     }
     int getY() const {
-        return y;
+        return (int)y;
     }
     void setX(int newX) {
-        x = newX;
+        x = (float)newX;
     }
     void setY(int newY) {
-        y = newY;
+        y = (float)newY;
     }
 
     void drawCircle(SDL_Renderer* ren, int centerX, int centerY, int radius) const {
@@ -75,21 +89,33 @@ public:
         }
     }
 
-    bool nearbyEnemy(const auto enemy) const {
-        float distX = x - enemy.x;
-        float distY = y - enemy.y;
-        if (distX * distX + distY * distY < 22500) { // 150 pixels radius, 150^2 = 22500
-            return true;
+    int nearbyEnemycount(const std::vector<Enemy>& enemies) const;
+    bool nearbyEnemyRender(const Enemy& enemy) const;
+
+    int nearbyFriend(const std::vector<Player>& friends) const {
+        int stev = 0;
+
+        for (const auto& friend_ : friends) {
+            float distX = x - friend_.x;
+            float distY = y - friend_.y;
+            if (distX * distX + distY * distY < 22500) { // 150 pixels radius, 150^2 = 22500
+                stev++;
+            }
         }
 
-        return false;
+        return stev;
+    }
+
+    void setSpeed(float newSpeed) {
+        speed = newSpeed;
     }
 
 private:
-    int x, y;
+    float x, y;
     bool inBoat = false, moveUp = false, moveDown = false, moveLeft = false, moveRight = false;
-    float speed = 5.0f;
+    float speed;
 };
+
 
 class Enemy : public Character {
 public:
@@ -123,17 +149,19 @@ public:
             }
         }
     }
-    bool nearbyEnemy(const std::vector<Enemy>& enemies) const {
+    int nearbyEnemy(const std::vector<Enemy>& enemies) const {
+        int count = 0;
+
         for (const auto& enemy : enemies) {
             if (&enemy != this) {
                 float distX = x - enemy.x;
                 float distY = y - enemy.y;
                 if (distX * distX + distY * distY < 22500) { // 150 pixels radius, 150^2 = 22500
-                    return true;
+                    count++;
                 }
             }
         }
-        return false;
+        return count;
     }
 
     void setHasTrash(bool value) {
@@ -183,8 +211,20 @@ public:
         trashDropTimer = 0.0f;
     }
 
+    void setSpeed(float newSpeed) {
+        speed = newSpeed;
+    }
+
+    float getX() const {
+        return x;
+    }
+
+    float getY() const {
+        return y;
+    }
+
 private:
-    float speed = 15.0f;
+    float speed;
     int dirX = 0;
     int dirY = 0;
     bool hasTrash = false;
@@ -223,8 +263,41 @@ public:
         }
     }
 
+    void setSpeed(float newSpeed) {
+        speed = newSpeed;
+    }
+
+    int nearbyEnemy(const std::vector<Enemy>& enemies) const {
+        int stev = 0;
+        for (const auto& enemy : enemies) {
+            float distX = x - enemy.x;
+            float distY = y - enemy.y;
+            if (distX * distX + distY * distY < 22500) { // 150 pixels radius, 150^2 = 22500
+                stev++;
+            }
+        }
+        return stev;
+    }
+
+    int nearbyFriend(const std::vector<Friend>& friends) const {
+        int stev = 0;
+
+        for (const auto& friend_ : friends) {
+            if (&friend_ != this) {
+                float distX = x - friend_.x;
+                float distY = y - friend_.y;
+                if (distX * distX + distY * distY < 22500) { // 150 pixels radius, 150^2 = 22500
+                    stev++;
+                }
+            }
+        }
+
+        return stev;
+    }
+
+
 private:
-    float speed = 20.0f;
+    float speed;
     int dirX = 0;
     int dirY = 0;
 };
@@ -296,8 +369,18 @@ public:
         }
     }
 
+    void setSpeed(float newSpeed) {
+        speed = newSpeed;
+    }
+
+    void renderAllTrash(SDL_Renderer* ren, const std::vector<Trash>& trashList) const {
+        for (const auto& t : trashList) {
+            t.render(ren);
+        }
+    }
+
 private:
-    float speed = 20.0f;
+    float speed;
     int dirX = 0;
     int dirY = 1;
 };
@@ -305,7 +388,7 @@ private:
 class Boat {
 public:
     void handleInput(const SDL_Event& e);
-    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid);
+    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime);
     void render(SDL_Renderer* ren) const;
     bool check_up(const std::vector<std::vector<int>>& grid, int i, int j) const;
     bool check_down(const std::vector<std::vector<int>>& grid, int i, int j) const;
@@ -319,8 +402,8 @@ public:
                 (check_up(grid, i - 1, j) || check_left(grid, i, j - 1) || check_down(grid, i + 1, j) ||
                  check_right(grid, i, j + 1)) &&
                 grid[i - 1][j] == 1) { // Spawn on water
-                x = j * squareSize + 5;
-                y = i * squareSize + 5;
+                x = (float)(j * squareSize + 5);
+                y = (float)(i * squareSize + 5);
                 if (x < windowWidth - 20 && y < windowHeight - 20) {
                     std::cout << "Boat spawned at: (" << x << ", " << y << ")\n";
                     return;
@@ -332,28 +415,39 @@ public:
         return SDL_Rect{(int)x, (int)y, 20, 20};
     };
     int getX() const {
-        return x;
+        return (int)x;
     }
     int getY() const {
-        return y;
+        return (int)y;
     }
     void setX(int newX) {
-        x = newX;
+        x = (float)newX;
     }
     void setY(int newY) {
-        y = newY;
+        y = (float)newY;
     }
 
     void setplayerInBoat(bool value) {
         playerInBoat = value;
+        if (!value) {
+            // Clear boat inputs when player exits
+            moveUp = false;
+            moveDown = false;
+            moveLeft = false;
+            moveRight = false;
+        }
     }
 
     bool getplayerInBoat() const {
         return playerInBoat;
     }
 
+    void setSpeed(float newSpeed) {
+        speed = newSpeed;
+    }
+
 private:
-    float speed = 5.0f;
+    float speed;
     bool moveUp = false, moveDown = false, moveLeft = false, moveRight = false, playerInBoat = false;
-    int x, y;
+    float x, y;
 };
