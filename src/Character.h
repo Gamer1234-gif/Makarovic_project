@@ -192,10 +192,10 @@ public:
     bool checkUp(const std::vector<std::vector<int>>& grid) const;
     bool checkDown(const std::vector<std::vector<int>>& grid) const;
     void Enemy_timer(float deltaTime) {
-        timer += deltaTime;
-        if (timer >= 30.0f) {
+        timerTrash += deltaTime;
+        if (timerTrash >= 30.0f) {
             giveTrash();
-            timer = 0.0f;
+            timerTrash = 0.0f;
         }
     }
 
@@ -228,7 +228,7 @@ private:
     int dirX = 0;
     int dirY = 0;
     bool hasTrash = false;
-    float timer = 0.0f;
+    float timerTrash = 0.0f, timerMove = 0.0f;
     float trashDropTimer = 0.0f;
 };
 
@@ -265,18 +265,6 @@ public:
 
     void setSpeed(float newSpeed) {
         speed = newSpeed;
-    }
-
-    int nearbyEnemy(const std::vector<Enemy>& enemies) const {
-        int stev = 0;
-        for (const auto& enemy : enemies) {
-            float distX = x - enemy.x;
-            float distY = y - enemy.y;
-            if (distX * distX + distY * distY < 22500) { // 150 pixels radius, 150^2 = 22500
-                stev++;
-            }
-        }
-        return stev;
     }
 
     int nearbyFriend(const std::vector<Friend>& friends) const {
@@ -343,23 +331,23 @@ public:
         int gridY = (enemy.y + 10) / 30;
 
         std::vector<std::pair<int, int>> directions;
-        if (gridY - 1 >= 0 && grid[gridY - 1][gridX] == 0) {
+        if (gridY - 2 >= 0 && grid[gridY - 2][gridX] == 0) {
             directions.emplace_back(0, -1); // Up
         }
-        if (gridY + 1 < (int)grid.size() && grid[gridY + 1][gridX] == 0) {
+        if (gridY + 2 < (int)grid.size() && grid[gridY + 2][gridX] == 0) {
             directions.emplace_back(0, 1); // Down
         }
-        if (gridX - 1 >= 0 && grid[gridY][gridX - 1] == 0) {
+        if (gridX - 2 >= 0 && grid[gridY][gridX - 2] == 0) {
             directions.emplace_back(-1, 0); // Left
         }
-        if (gridX + 1 < (int)grid[gridY].size() && grid[gridY][gridX + 1] == 0) {
+        if (gridX + 2 < (int)grid[gridY].size() && grid[gridY][gridX + 2] == 0) {
             directions.emplace_back(1, 0); // Right
         }
 
         if (!directions.empty()) {
             auto [dx, dy] = directions[rand() % directions.size()];
-            x = enemy.x + dx * 30;
-            y = enemy.y + dy * 30;
+            x = enemy.x + dx * 30 + 15;
+            y = enemy.y + dy * 30 + 15;
             if (x < windowWidth - 20 && y < windowHeight - 20) {
                 std::cout << "Trash spawned from enemy at: (" << x << ", " << y << ")\n";
                 dirX = dx;

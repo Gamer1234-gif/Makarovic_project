@@ -197,6 +197,29 @@ void Game::update() {
     }
 
     for (auto it = friends.begin(); it != friends.end();) {
+        SDL_Rect fRect = it->getRect();
+        for (auto it_enemy = enemies.begin(); it_enemy != enemies.end();) {
+            SDL_Rect eRect = it_enemy->getRect();
+            if (SDL_HasIntersection(&fRect, &eRect) && (it->nearbyFriend(friends) >= it_enemy->nearbyEnemy(enemies))) {
+                std::cout << "Friend hit enemy!\n";
+                it_enemy = enemies.erase(it_enemy);
+                score++;
+                enemiesRemaining--;
+                break;
+            } else {
+                if (SDL_HasIntersection(&fRect, &eRect)) {
+                    std::cout << "Friend hit by enemy!\n";
+                    it = friends.erase(it);
+                    friendsRemaining--;
+                    break;
+                }
+            }
+            it_enemy++;
+        }
+        it++;
+    }
+
+    for (auto it = friends.begin(); it != friends.end();) {
         SDL_Rect pRect = player.getRect();
         SDL_Rect fRect = it->getRect();
 

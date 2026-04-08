@@ -115,6 +115,36 @@ bool Player::nearbyEnemyRender(const Enemy& enemy) const {
 }
 
 void Enemy::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) {
+    timerMove += deltaTime;
+    if (timerMove >= 2.50f) {
+        timerMove = 0.0f;
+
+        int gridX = (x + 10) / 30;
+        int gridY = (y + 10) / 30;
+        std::vector<std::pair<int, int>> directions;
+
+        if (gridX >= 0 && gridX < (int)grid[0].size() && gridY >= 0 && gridY < (int)grid.size()) {
+            if (gridY - 1 >= 0 && grid[gridY - 1][gridX] == 1) {
+                directions.emplace_back(0, -1); // Up
+            }
+            if (gridY + 1 < (int)grid.size() && grid[gridY + 1][gridX] == 1) {
+                directions.emplace_back(0, 1); // Down
+            }
+            if (gridX - 1 >= 0 && grid[gridY][gridX - 1] == 1) {
+                directions.emplace_back(-1, 0); // Left
+            }
+            if (gridX + 1 < (int)grid[gridY].size() && grid[gridY][gridX + 1] == 1) {
+                directions.emplace_back(1, 0); // Right
+            }
+        }
+
+        if (!directions.empty()) {
+            auto [dx, dy] = directions[rand() % directions.size()];
+            dirX = dx;
+            dirY = dy;
+        }
+    }
+
     float newX = x + dirX * speed * deltaTime;
     float newY = y + dirY * speed * deltaTime;
 
