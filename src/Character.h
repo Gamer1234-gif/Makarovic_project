@@ -283,6 +283,16 @@ public:
         return stev;
     }
 
+    int nearbyPlayer(const Player& player) const {
+        float distX = x - player.getX();
+        float distY = y - player.getY();
+        if (distX * distX + distY * distY < 22500) { // 150 pixels radius, 150^2 = 22500
+            return 1;
+        }
+
+        return 0;
+    }
+
 
 private:
     float speed;
@@ -399,6 +409,11 @@ public:
             }
         }
     }
+    void SpawnInOcean(float pl_x, float pl_y) {
+        this->x = pl_x;
+        this->y = pl_y;
+    }
+
     SDL_Rect getRect() const {
         return SDL_Rect{(int)x, (int)y, 20, 20};
     };
