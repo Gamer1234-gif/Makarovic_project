@@ -1,6 +1,7 @@
 #include "Character.h"
 #include "Game.h"
 #include <SDL2/SDL_ttf.h>
+#include <algorithm>
 #include <cstdio>
 #include <iostream>
 
@@ -30,6 +31,8 @@ void Game::loadLevel(int levelIndex) {
     // Store original position for respawning
     originalPlayerX = player.getX();
     originalPlayerY = player.getY();
+    originalBoatX = boat.getX();
+    originalBoatY = boat.getY();
 
     if (player.getInBoat()) {
         boat.SpawnInOcean(player.getX(), player.getY());
@@ -85,7 +88,8 @@ bool Game::init() {
     }
 
     win = SDL_CreateWindow(
-        "GAME", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN
+        "GAME", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight,
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
     );
 
     if (!win) return false;
@@ -138,7 +142,7 @@ void Game::handleEvents() {
                     running = false;
                 }
             }
-            if (gameState == DEATH_SCREEN && event.type == SDL_KEYDOWN) {
+            if (gameState == DEATH_SCREEN && event.type == SDL_KEYDOWN && inputLockTimer <= 0.0f) {
                 if (resumedGameIsDead) {
                     // Only delete save if this was a resumed game that died
                     deleteSavedGame(playerName);
@@ -203,8 +207,13 @@ void Game::handleNameInputEvents() {
                 playerName = "";
             }
             if (event.key.keysym.sym == SDLK_RETURN && !playerName.empty()) {
-                // Check if player has a saved game
-                if (hasSavedGame(playerName)) {
+                // Check if player is blacklisted (died before)
+                if (isBlacklisted(playerName)) {
+                    // Player has died before - cannot play
+                    gameState = MAIN_MENU;
+                    playerName = "";
+                    std::cout << "This player has already died and cannot continue.\n";
+                } else if (hasSavedGame(playerName)) {
                     SavedGame savedGame = loadGameState(playerName);
                     isResumedGame = true;
                     resumedGameIsDead = savedGame.isDead;
@@ -213,11 +222,19 @@ void Game::handleNameInputEvents() {
                         // If player died before, show death screen
                         gameState = DEATH_SCREEN;
                         deathScreenTimer = DEATH_SCREEN_DURATION;
+                        inputLockTimer = INPUT_LOCK_DURATION;
                     } else {
                         // Resume the game
                         currentLevel = savedGame.level - 1;
                         score = savedGame.score;
                         loadLevel(currentLevel);
+                        // Restore player position
+                        player.setX(savedGame.playerX);
+                        player.setY(savedGame.playerY);
+                        boat.setX(savedGame.boatX);
+                        boat.setY(savedGame.boatY);
+                        // Restore boat state
+                        player.setInBoat(savedGame.inBoat);
                         gameState = PLAYING;
                     }
                 } else {
@@ -267,6 +284,7 @@ void Game::update() {
     if (gameState != PLAYING) {
         if (gameState == DEATH_SCREEN) {
             deathScreenTimer -= deltaTime;
+            inputLockTimer -= deltaTime;
             if (deathScreenTimer <= 0.0f) {
                 // Auto transition after timeout (optional, user can also press SPACE)
                 // resetPlayerPosition();
@@ -289,6 +307,7 @@ void Game::update() {
         enemy.update(windowWidth, windowHeight, grid, deltaTime);
         if (enemy.checkRight(grid) && enemy.getHasTrash() && enemy.canDropTrash()) {
             t.SpawnFromEnemy(enemy, grid, windowWidth, windowHeight);
+            t.setSpeed(levels[currentLevel].trashSpeed);
             trash.push_back(t);
             trashRemaining++;
             enemy.setHasTrash(false);
@@ -297,6 +316,7 @@ void Game::update() {
 
         if (enemy.checkLeft(grid) && enemy.getHasTrash() && enemy.canDropTrash()) {
             t.SpawnFromEnemy(enemy, grid, windowWidth, windowHeight);
+            t.setSpeed(levels[currentLevel].trashSpeed);
             trash.push_back(t);
             trashRemaining++;
             enemy.setHasTrash(false);
@@ -305,6 +325,7 @@ void Game::update() {
 
         if (enemy.checkUp(grid) && enemy.getHasTrash() && enemy.canDropTrash()) {
             t.SpawnFromEnemy(enemy, grid, windowWidth, windowHeight);
+            t.setSpeed(levels[currentLevel].trashSpeed);
             trash.push_back(t);
             trashRemaining++;
             enemy.setHasTrash(false);
@@ -313,6 +334,7 @@ void Game::update() {
 
         if (enemy.checkDown(grid) && enemy.getHasTrash() && enemy.canDropTrash()) {
             t.SpawnFromEnemy(enemy, grid, windowWidth, windowHeight);
+            t.setSpeed(levels[currentLevel].trashSpeed);
             trash.push_back(t);
             trashRemaining++;
             enemy.setHasTrash(false);
@@ -339,6 +361,8 @@ void Game::update() {
                              << " | Dead: 1\n";
                     deadFile.close();
                 }
+                // Add to blacklist so they can't play again
+                addToBlacklist(playerName);
                 // Also save to results
                 saveGameResult();
                 gameState = DEATH_SCREEN;
@@ -709,13 +733,47 @@ void Game::renderDeathScreen() {
         if (deathSurface) {
             SDL_Texture* deathTexture = SDL_CreateTextureFromSurface(ren, deathSurface);
             if (deathTexture) {
-                SDL_Rect deathRect = {
-                    windowWidth / 2 - deathSurface->w / 2, windowHeight / 2 - 100, deathSurface->w, deathSurface->h
-                };
+                SDL_Rect deathRect = {windowWidth / 2 - deathSurface->w / 2, 20, deathSurface->w, deathSurface->h};
                 SDL_RenderCopy(ren, deathTexture, NULL, &deathRect);
                 SDL_DestroyTexture(deathTexture);
             }
             SDL_FreeSurface(deathSurface);
+        }
+    }
+
+    // Display top 5 results
+    if (font) {
+        SDL_Color titleColor = {255, 215, 0, 255};
+        SDL_Surface* titleSurface = TTF_RenderText_Solid(font, "TOP 5 RESULTS", titleColor);
+        if (titleSurface) {
+            SDL_Texture* titleTexture = SDL_CreateTextureFromSurface(ren, titleSurface);
+            if (titleTexture) {
+                SDL_Rect titleRect = {windowWidth / 2 - titleSurface->w / 2, 100, titleSurface->w, titleSurface->h};
+                SDL_RenderCopy(ren, titleTexture, NULL, &titleRect);
+                SDL_DestroyTexture(titleTexture);
+            }
+            SDL_FreeSurface(titleSurface);
+        }
+
+        std::vector<GameResult> top5 = getTop5Results();
+        SDL_Color scoreColor = {200, 200, 200, 255};
+        int yOffset = 140;
+        for (size_t i = 0; i < top5.size(); ++i) {
+            std::string scoreText =
+                std::to_string(i + 1) + ". " + top5[i].playerName + " - Score: " + std::to_string(top5[i].score);
+            SDL_Surface* scoreSurface = TTF_RenderText_Solid(font, scoreText.c_str(), scoreColor);
+            if (scoreSurface) {
+                SDL_Texture* scoreTexture = SDL_CreateTextureFromSurface(ren, scoreSurface);
+                if (scoreTexture) {
+                    SDL_Rect scoreRect = {
+                        windowWidth / 2 - scoreSurface->w / 2, yOffset, scoreSurface->w, scoreSurface->h
+                    };
+                    SDL_RenderCopy(ren, scoreTexture, NULL, &scoreRect);
+                    SDL_DestroyTexture(scoreTexture);
+                }
+                SDL_FreeSurface(scoreSurface);
+            }
+            yOffset += 30;
         }
     }
 
@@ -726,8 +784,7 @@ void Game::renderDeathScreen() {
             SDL_Texture* instructTexture = SDL_CreateTextureFromSurface(ren, instructSurface);
             if (instructTexture) {
                 SDL_Rect instructRect = {
-                    windowWidth / 2 - instructSurface->w / 2, windowHeight / 2 + 50, instructSurface->w,
-                    instructSurface->h
+                    windowWidth / 2 - instructSurface->w / 2, windowHeight - 50, instructSurface->w, instructSurface->h
                 };
                 SDL_RenderCopy(ren, instructTexture, NULL, &instructRect);
                 SDL_DestroyTexture(instructTexture);
@@ -816,13 +873,57 @@ std::vector<GameResult> Game::loadGameResults() {
     return results;
 }
 
+std::vector<GameResult> Game::getTop5Results() {
+    std::vector<GameResult> allResults = loadGameResults();
+
+    // Sort by score in descending order
+    std::sort(allResults.begin(), allResults.end(), [](const GameResult& a, const GameResult& b) {
+        return a.score > b.score;
+    });
+
+    // Return top 5 (or fewer if less than 5 results exist)
+    if (allResults.size() > 5) {
+        allResults.resize(5);
+    }
+
+    return allResults;
+}
+
 void Game::saveGameState() {
-    std::ofstream file("game_saves.txt", std::ios::app);
-    if (file.is_open()) {
-        file << playerName << " | Score: " << score << " | Level: " << (currentLevel + 1) << " | Dead: 0\n";
-        file.close();
+    // First, remove old save for this player
+    std::ifstream infile("game_saves.txt");
+    std::vector<std::string> lines;
+    if (infile.is_open()) {
+        std::string line;
+        while (std::getline(infile, line)) {
+            if (!line.empty()) {
+                size_t nameEnd = line.find(" | Score: ");
+                if (nameEnd != std::string::npos) {
+                    std::string fileName = line.substr(0, nameEnd);
+                    if (fileName != playerName) {
+                        lines.push_back(line);
+                    }
+                }
+            }
+        }
+        infile.close();
+    }
+
+    // Write back all lines except the old save for this player
+    std::ofstream outfile("game_saves.txt");
+    if (outfile.is_open()) {
+        for (const auto& line : lines) {
+            outfile << line << "\n";
+        }
+        // Append new save
+        outfile << playerName << " | Score: " << score << " | Level: " << (currentLevel + 1)
+                << " | Dead: 0 | PlayerX: " << player.getX() << " | PlayerY: " << player.getY()
+                << " | BoatX: " << boat.getX() << " | BoatY: " << boat.getY()
+                << " | InBoat: " << (player.getInBoat() ? 1 : 0) << "\n";
+        outfile.close();
         std::cout << "Game state saved: " << playerName << " - Score: " << score << " - Level: " << (currentLevel + 1)
-                  << "\n";
+                  << " - Pos: (" << player.getX() << ", " << player.getY() << "), Boat Pos: (" << boat.getX() << ", "
+                  << boat.getY() << ")\n";
     } else {
         std::cerr << "Failed to open game_saves.txt for writing\n";
     }
@@ -834,6 +935,11 @@ SavedGame Game::loadGameState(const std::string& name) {
     result.score = 0;
     result.level = 0;
     result.isDead = false;
+    result.playerX = 100;
+    result.playerY = 100;
+    result.boatX = 100;
+    result.boatY = 100;
+    result.inBoat = false;
 
     std::ifstream file("game_saves.txt");
     if (file.is_open()) {
@@ -841,21 +947,32 @@ SavedGame Game::loadGameState(const std::string& name) {
         while (std::getline(file, line)) {
             if (line.empty()) continue;
 
-            // Parse line format: "name | Score: score | Level: level | Dead: isDead"
+            // Parse line format: "name | Score: score | Level: level | Dead: isDead | PlayerX: x | PlayerY: y | BoatX:
+            // bx | BoatY: by"
             size_t nameEnd = line.find(" | Score: ");
             if (nameEnd != std::string::npos) {
                 std::string fileName = line.substr(0, nameEnd);
                 if (fileName != name) continue;
 
-                size_t scoreStart = nameEnd + 10;
-                size_t scoreEnd = line.find(" | Level: ", scoreStart);
-                size_t levelStart = scoreEnd + 10;
-                size_t levelEnd = line.find(" | Dead: ", levelStart);
-                size_t deadStart = levelEnd + 9;
+                // Helper lambda to extract value between delimiters
+                auto extractValue = [&line](const std::string& start_delim, const std::string& end_delim) -> int {
+                    size_t start = line.find(start_delim);
+                    if (start == std::string::npos) return 0;
+                    start += start_delim.length();
+                    size_t end = line.find(end_delim, start);
+                    if (end == std::string::npos) end = line.length();
+                    return std::stoi(line.substr(start, end - start));
+                };
 
-                result.score = std::stoi(line.substr(scoreStart, scoreEnd - scoreStart));
-                result.level = std::stoi(line.substr(levelStart, levelEnd - levelStart));
-                result.isDead = (std::stoi(line.substr(deadStart)) == 1);
+                result.score = extractValue(" | Score: ", " | Level: ");
+                result.level = extractValue(" | Level: ", " | Dead: ");
+                result.isDead = (extractValue(" | Dead: ", " | PlayerX: ") == 1);
+                result.playerX = extractValue(" | PlayerX: ", " | PlayerY: ");
+                result.playerY = extractValue(" | PlayerY: ", " | BoatX: ");
+                result.boatX = extractValue(" | BoatX: ", " | BoatY: ");
+                result.boatY = extractValue(" | BoatY: ", " | InBoat: ");
+                result.inBoat =
+                    (extractValue(" | InBoat: ", " | END") == 1); // END won't be found, so it takes rest of line
 
                 file.close();
                 return result;
@@ -916,4 +1033,45 @@ void Game::deleteSavedGame(const std::string& name) {
 bool Game::playerHasDiedBefore(const std::string& name) {
     SavedGame saved = loadGameState(name);
     return saved.isDead;
+}
+
+void Game::addToBlacklist(const std::string& name) {
+    std::ofstream file("blacklist.txt", std::ios::app);
+    if (file.is_open()) {
+        file << name << "\n";
+        file.close();
+        std::cout << "Player " << name << " added to blacklist.\n";
+    } else {
+        std::cerr << "Failed to open blacklist.txt for writing\n";
+    }
+}
+
+bool Game::isBlacklisted(const std::string& name) {
+    std::ifstream file("blacklist.txt");
+    if (file.is_open()) {
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line == name) {
+                file.close();
+                return true;
+            }
+        }
+        file.close();
+    }
+    return false;
+}
+
+std::vector<std::string> Game::loadBlacklist() {
+    std::vector<std::string> blacklist;
+    std::ifstream file("blacklist.txt");
+    if (file.is_open()) {
+        std::string line;
+        while (std::getline(file, line)) {
+            if (!line.empty()) {
+                blacklist.push_back(line);
+            }
+        }
+        file.close();
+    }
+    return blacklist;
 }

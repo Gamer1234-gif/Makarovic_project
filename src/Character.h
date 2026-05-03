@@ -340,11 +340,16 @@ public:
         int gridX = (enemy.x + 10) / 30;
         int gridY = (enemy.y + 10) / 30;
 
+        // Validate initial position
+        if (gridY < 0 || gridY >= (int)grid.size() || gridX < 0 || gridX >= (int)grid[gridY].size()) {
+            return; // Invalid spawn position
+        }
+
         std::vector<std::pair<int, int>> directions;
-        if (gridY - 2 >= 0 && grid[gridY - 2][gridX] == 0) {
+        if (gridY - 2 >= 0 && gridX < (int)grid[gridY - 2].size() && grid[gridY - 2][gridX] == 0) {
             directions.emplace_back(0, -1); // Up
         }
-        if (gridY + 2 < (int)grid.size() && grid[gridY + 2][gridX] == 0) {
+        if (gridY + 2 < (int)grid.size() && gridX < (int)grid[gridY + 2].size() && grid[gridY + 2][gridX] == 0) {
             directions.emplace_back(0, 1); // Down
         }
         if (gridX - 2 >= 0 && grid[gridY][gridX - 2] == 0) {

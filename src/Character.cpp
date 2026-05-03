@@ -116,7 +116,9 @@ bool Player::nearbyEnemyRender(const Enemy& enemy) const {
 
 void Enemy::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) {
     timerMove += deltaTime;
-    if (timerMove >= 2.50f) {
+    // Random change interval between 2 and 5 seconds
+    float changeInterval = 2.0f + (rand() % 31) / 10.0f; // 2.0 to 5.0 seconds
+    if (timerMove >= changeInterval) {
         timerMove = 0.0f;
 
         int gridX = (x + 10) / 30;
@@ -219,7 +221,9 @@ bool Enemy::checkDown(const std::vector<std::vector<int>>& grid) const {
 
 void Friend::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) {
     timer += deltaTime;
-    if (timer >= 2.0f) {
+    // Random change interval between 2 and 5 seconds
+    float changeInterval = 2.0f + (rand() % 31) / 10.0f; // 2.0 to 5.0 seconds
+    if (timer >= changeInterval) {
         timer = 0.0f;
 
         int gridX = (x + 10) / 30;
@@ -285,7 +289,9 @@ void Friend::render(SDL_Renderer* ren) const {
 
 void Trash::update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) {
     timer += deltaTime;
-    if (timer >= 2.0f) {
+    // Random change interval between 2 and 5 seconds
+    float changeInterval = 2.0f + (rand() % 31) / 10.0f; // 2.0 to 5.0 seconds
+    if (timer >= changeInterval) {
         timer = 0.0f;
 
         int gridX = (x + 10) / 30;

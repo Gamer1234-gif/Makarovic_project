@@ -29,6 +29,11 @@ struct SavedGame {
     int score;
     int level;
     bool isDead;
+    int playerX;
+    int playerY;
+    int boatX;
+    int boatY;
+    bool inBoat;
 };
 
 enum GameState { MAIN_MENU, LEVEL_SELECT, NAME_INPUT, PLAYING, DEATH_SCREEN, GAME_OVER };
@@ -98,10 +103,14 @@ private:
     int selectedLevel = 0;
     float deathScreenTimer = 0.0f;
     static constexpr float DEATH_SCREEN_DURATION = 3.0f;
+    float inputLockTimer = 0.0f;
+    static constexpr float INPUT_LOCK_DURATION = 1.0f;
 
     // Store original player position for respawn
     float originalPlayerX = 0.0f;
     float originalPlayerY = 0.0f;
+    float originalBoatX = 0.0f;
+    float originalBoatY = 0.0f;
 
     // Resume game flag
     bool isResumedGame = false;
@@ -120,6 +129,7 @@ private:
     // File I/O functions
     void saveGameResult();
     std::vector<GameResult> loadGameResults();
+    std::vector<GameResult> getTop5Results();
 
     // Save/Load game state functions
     void saveGameState();
@@ -127,4 +137,9 @@ private:
     bool hasSavedGame(const std::string& name);
     void deleteSavedGame(const std::string& name);
     bool playerHasDiedBefore(const std::string& name);
+
+    // Blacklist functions
+    void addToBlacklist(const std::string& name);
+    bool isBlacklisted(const std::string& name);
+    std::vector<std::string> loadBlacklist();
 };
