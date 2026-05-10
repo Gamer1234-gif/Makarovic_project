@@ -223,11 +223,61 @@ public:
         return y;
     }
 
+    // Alert system: returns true if enemy sees player
+    bool canSeePlayer(float playerX, float playerY) const {
+        float distX = x - playerX;
+        float distY = y - playerY;
+        return (distX * distX + distY * distY) < 22500; // 150 pixels
+    }
+
+    void setAlerted(bool value) {
+        isAlerted = value;
+    }
+
+    bool getIsAlerted() const {
+        return isAlerted;
+    }
+
+    // Alert nearby enemies and get them to chase player
+    void alertNearbyEnemies(std::vector<Enemy>& enemies, float playerX, float playerY) {
+        for (auto& enemy : enemies) {
+            if (&enemy != this) {
+                float distX = x - enemy.x;
+                float distY = y - enemy.y;
+                if (distX * distX + distY * distY < 22500) { // 150 pixels radius
+                    enemy.setAlerted(true);
+                }
+            }
+        }
+    }
+
+    void moveTowardsPlayer(float playerX, float playerY) {
+        if (isAlerted) {
+            float distX = playerX - x;
+            float distY = playerY - y;
+            float length = sqrt(distX * distX + distY * distY);
+            if (distX > 0)
+                dirX = 1;
+            else if (distX < 0)
+                dirX = -1;
+            else
+                dirX = 0;
+
+            if (distY > 0)
+                dirY = 1;
+            else if (distY < 0)
+                dirY = -1;
+            else
+                dirY = 0;
+        }
+    }
+
 private:
     float speed;
     int dirX = 0;
     int dirY = 0;
     bool hasTrash = false;
+    bool isAlerted = false;
     float timerTrash = 0.0f, timerMove = 0.0f;
     float trashDropTimer = 0.0f;
 };

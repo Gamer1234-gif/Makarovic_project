@@ -235,6 +235,33 @@ void Game::handleNameInputEvents() {
                         boat.setY(savedGame.boatY);
                         // Restore boat state
                         player.setInBoat(savedGame.inBoat);
+
+                        // Spawn additional enemies if needed
+                        while ((int)enemies.size() < savedGame.enemyCount) {
+                            Enemy e;
+                            e.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
+                            e.setSpeed(levels[currentLevel].enemySpeed);
+                            e.giveTrash();
+                            enemies.push_back(e);
+                            enemiesRemaining = enemies.size();
+                        }
+                        // Spawn additional trash if needed
+                        while ((int)trash.size() < savedGame.trashCount) {
+                            Trash t;
+                            t.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
+                            t.setSpeed(levels[currentLevel].trashSpeed);
+                            trash.push_back(t);
+                            trashRemaining = trash.size();
+                        }
+                        // Spawn additional friends if needed
+                        while ((int)friends.size() < savedGame.friendCount) {
+                            Friend f;
+                            f.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
+                            f.setSpeed(levels[currentLevel].friendSpeed);
+                            friends.push_back(f);
+                            friendsRemaining = friends.size();
+                        }
+
                         gameState = PLAYING;
                     }
                 } else {
@@ -304,7 +331,20 @@ void Game::update() {
         enemy.Enemy_timer(deltaTime);
         enemy.updateTrashDropTimer(deltaTime);
         Trash t;
-        enemy.update(windowWidth, windowHeight, grid, deltaTime);
+
+        if (enemy.getIsAlerted() && enemy.nearbyEnemy(enemies) != 0) {
+            enemy.moveTowardsPlayer(player.getX(), player.getY());
+            enemy.setAlerted(false); // Reset alerted state after moving towards player
+            enemy.update(windowWidth, windowHeight, grid, deltaTime);
+        } else {
+            enemy.update(windowWidth, windowHeight, grid, deltaTime);
+        }
+
+        // Enemy vision/alert system
+        if (enemy.canSeePlayer(player.getX(), player.getY())) {
+            enemy.setAlerted(true);
+            enemy.alertNearbyEnemies(enemies, player.getX(), player.getY());
+        }
         if (enemy.checkRight(grid) && enemy.getHasTrash() && enemy.canDropTrash()) {
             t.SpawnFromEnemy(enemy, grid, windowWidth, windowHeight);
             t.setSpeed(levels[currentLevel].trashSpeed);
@@ -890,42 +930,47 @@ std::vector<GameResult> Game::getTop5Results() {
 }
 
 void Game::saveGameState() {
-    // First, remove old save for this player
-    std::ifstream infile("game_saves.txt");
-    std::vector<std::string> lines;
-    if (infile.is_open()) {
-        std::string line;
-        while (std::getline(infile, line)) {
-            if (!line.empty()) {
-                size_t nameEnd = line.find(" | Score: ");
-                if (nameEnd != std::string::npos) {
-                    std::string fileName = line.substr(0, nameEnd);
-                    if (fileName != playerName) {
-                        lines.push_back(line);
-                    }
-                }
-            }
-        }
-        infile.close();
-    }
+    // Create filename based on player name
+    std::string filename = "save_" + playerName + ".bin";
 
-    // Write back all lines except the old save for this player
-    std::ofstream outfile("game_saves.txt");
-    if (outfile.is_open()) {
-        for (const auto& line : lines) {
-            outfile << line << "\n";
-        }
-        // Append new save
-        outfile << playerName << " | Score: " << score << " | Level: " << (currentLevel + 1)
-                << " | Dead: 0 | PlayerX: " << player.getX() << " | PlayerY: " << player.getY()
-                << " | BoatX: " << boat.getX() << " | BoatY: " << boat.getY()
-                << " | InBoat: " << (player.getInBoat() ? 1 : 0) << "\n";
-        outfile.close();
-        std::cout << "Game state saved: " << playerName << " - Score: " << score << " - Level: " << (currentLevel + 1)
-                  << " - Pos: (" << player.getX() << ", " << player.getY() << "), Boat Pos: (" << boat.getX() << ", "
-                  << boat.getY() << ")\n";
+    std::ofstream file(filename, std::ios::binary);
+    if (file.is_open()) {
+        // Write player name (length + string)
+        int nameLen = playerName.length();
+        file.write(reinterpret_cast<char*>(&nameLen), sizeof(int));
+        file.write(playerName.c_str(), nameLen);
+
+        // Write game state
+        int score_val = score;
+        int level_val = currentLevel + 1;
+        int isDead_val = 0;
+        int playerX_val = player.getX();
+        int playerY_val = player.getY();
+        int boatX_val = boat.getX();
+        int boatY_val = boat.getY();
+        int inBoat_val = player.getInBoat() ? 1 : 0;
+        int enemyCount_val = enemies.size();
+        int trashCount_val = trash.size();
+        int friendCount_val = friends.size();
+
+        file.write(reinterpret_cast<char*>(&score_val), sizeof(int));
+        file.write(reinterpret_cast<char*>(&level_val), sizeof(int));
+        file.write(reinterpret_cast<char*>(&isDead_val), sizeof(int));
+        file.write(reinterpret_cast<char*>(&playerX_val), sizeof(int));
+        file.write(reinterpret_cast<char*>(&playerY_val), sizeof(int));
+        file.write(reinterpret_cast<char*>(&boatX_val), sizeof(int));
+        file.write(reinterpret_cast<char*>(&boatY_val), sizeof(int));
+        file.write(reinterpret_cast<char*>(&inBoat_val), sizeof(int));
+        file.write(reinterpret_cast<char*>(&enemyCount_val), sizeof(int));
+        file.write(reinterpret_cast<char*>(&trashCount_val), sizeof(int));
+        file.write(reinterpret_cast<char*>(&friendCount_val), sizeof(int));
+
+        file.close();
+        std::cout << "Game state saved to binary: " << filename << " - Score: " << score << " - Level: " << level_val
+                  << " - Enemies: " << enemyCount_val << " Trash: " << trashCount_val << " Friends: " << friendCount_val
+                  << "\n";
     } else {
-        std::cerr << "Failed to open game_saves.txt for writing\n";
+        std::cerr << "Failed to open " << filename << " for writing\n";
     }
 }
 
@@ -933,100 +978,75 @@ SavedGame Game::loadGameState(const std::string& name) {
     SavedGame result;
     result.playerName = name;
     result.score = 0;
-    result.level = 0;
+    result.level = 1;
     result.isDead = false;
     result.playerX = 100;
     result.playerY = 100;
     result.boatX = 100;
     result.boatY = 100;
     result.inBoat = false;
+    result.enemyCount = 0;
+    result.trashCount = 0;
+    result.friendCount = 0;
 
-    std::ifstream file("game_saves.txt");
+    std::string filename = "save_" + name + ".bin";
+    std::ifstream file(filename, std::ios::binary);
     if (file.is_open()) {
-        std::string line;
-        while (std::getline(file, line)) {
-            if (line.empty()) continue;
+        // Read player name
+        int nameLen;
+        file.read(reinterpret_cast<char*>(&nameLen), sizeof(int));
+        char* nameBuf = new char[nameLen + 1];
+        file.read(nameBuf, nameLen);
+        nameBuf[nameLen] = '\0';
+        result.playerName = std::string(nameBuf);
+        delete[] nameBuf;
 
-            // Parse line format: "name | Score: score | Level: level | Dead: isDead | PlayerX: x | PlayerY: y | BoatX:
-            // bx | BoatY: by"
-            size_t nameEnd = line.find(" | Score: ");
-            if (nameEnd != std::string::npos) {
-                std::string fileName = line.substr(0, nameEnd);
-                if (fileName != name) continue;
+        // Read game state
+        int score_val, level_val, isDead_val, playerX_val, playerY_val, boatX_val, boatY_val, inBoat_val;
+        int enemyCount_val, trashCount_val, friendCount_val;
 
-                // Helper lambda to extract value between delimiters
-                auto extractValue = [&line](const std::string& start_delim, const std::string& end_delim) -> int {
-                    size_t start = line.find(start_delim);
-                    if (start == std::string::npos) return 0;
-                    start += start_delim.length();
-                    size_t end = line.find(end_delim, start);
-                    if (end == std::string::npos) end = line.length();
-                    return std::stoi(line.substr(start, end - start));
-                };
+        file.read(reinterpret_cast<char*>(&score_val), sizeof(int));
+        file.read(reinterpret_cast<char*>(&level_val), sizeof(int));
+        file.read(reinterpret_cast<char*>(&isDead_val), sizeof(int));
+        file.read(reinterpret_cast<char*>(&playerX_val), sizeof(int));
+        file.read(reinterpret_cast<char*>(&playerY_val), sizeof(int));
+        file.read(reinterpret_cast<char*>(&boatX_val), sizeof(int));
+        file.read(reinterpret_cast<char*>(&boatY_val), sizeof(int));
+        file.read(reinterpret_cast<char*>(&inBoat_val), sizeof(int));
+        file.read(reinterpret_cast<char*>(&enemyCount_val), sizeof(int));
+        file.read(reinterpret_cast<char*>(&trashCount_val), sizeof(int));
+        file.read(reinterpret_cast<char*>(&friendCount_val), sizeof(int));
 
-                result.score = extractValue(" | Score: ", " | Level: ");
-                result.level = extractValue(" | Level: ", " | Dead: ");
-                result.isDead = (extractValue(" | Dead: ", " | PlayerX: ") == 1);
-                result.playerX = extractValue(" | PlayerX: ", " | PlayerY: ");
-                result.playerY = extractValue(" | PlayerY: ", " | BoatX: ");
-                result.boatX = extractValue(" | BoatX: ", " | BoatY: ");
-                result.boatY = extractValue(" | BoatY: ", " | InBoat: ");
-                result.inBoat =
-                    (extractValue(" | InBoat: ", " | END") == 1); // END won't be found, so it takes rest of line
+        result.score = score_val;
+        result.level = level_val;
+        result.isDead = (isDead_val == 1);
+        result.playerX = playerX_val;
+        result.playerY = playerY_val;
+        result.boatX = boatX_val;
+        result.boatY = boatY_val;
+        result.inBoat = (inBoat_val == 1);
+        result.enemyCount = enemyCount_val;
+        result.trashCount = trashCount_val;
+        result.friendCount = friendCount_val;
 
-                file.close();
-                return result;
-            }
-        }
         file.close();
+        std::cout << "Game state loaded from binary: " << filename << " - Score: " << result.score
+                  << " - Enemies: " << enemyCount_val << " Trash: " << trashCount_val << " Friends: " << friendCount_val
+                  << "\n";
     }
     return result;
 }
 
 bool Game::hasSavedGame(const std::string& name) {
-    std::ifstream file("game_saves.txt");
-    if (file.is_open()) {
-        std::string line;
-        while (std::getline(file, line)) {
-            if (line.empty()) continue;
-
-            size_t nameEnd = line.find(" | Score: ");
-            if (nameEnd != std::string::npos) {
-                std::string fileName = line.substr(0, nameEnd);
-                if (fileName == name) {
-                    file.close();
-                    return true;
-                }
-            }
-        }
-        file.close();
-    }
-    return false;
+    std::string filename = "save_" + name + ".bin";
+    std::ifstream file(filename, std::ios::binary);
+    return file.good();
 }
 
 void Game::deleteSavedGame(const std::string& name) {
-    std::ifstream infile("game_saves.txt");
-    std::ofstream outfile("game_saves_temp.txt");
-
-    if (infile.is_open() && outfile.is_open()) {
-        std::string line;
-        while (std::getline(infile, line)) {
-            if (line.empty()) continue;
-
-            size_t nameEnd = line.find(" | Score: ");
-            if (nameEnd != std::string::npos) {
-                std::string fileName = line.substr(0, nameEnd);
-                if (fileName != name) {
-                    outfile << line << "\n";
-                }
-            }
-        }
-        infile.close();
-        outfile.close();
-
-        // Replace original file
-        remove("game_saves.txt");
-        rename("game_saves_temp.txt", "game_saves.txt");
+    std::string filename = "save_" + name + ".bin";
+    if (std::remove(filename.c_str()) == 0) {
+        std::cout << "Save file deleted: " << filename << "\n";
     }
 }
 

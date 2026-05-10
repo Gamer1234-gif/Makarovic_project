@@ -34,6 +34,9 @@ struct SavedGame {
     int boatX;
     int boatY;
     bool inBoat;
+    int enemyCount;
+    int trashCount;
+    int friendCount;
 };
 
 enum GameState { MAIN_MENU, LEVEL_SELECT, NAME_INPUT, PLAYING, DEATH_SCREEN, GAME_OVER };

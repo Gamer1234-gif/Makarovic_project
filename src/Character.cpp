@@ -177,6 +177,8 @@ void Enemy::update(int windowWidth, int windowHeight, const std::vector<std::vec
     }
 }
 
+
+
 void Enemy::render(SDL_Renderer* ren) const {
     SDL_SetRenderDrawColor(ren, 255, 0, 0, 255); // Red for enemy
     SDL_Rect rect = {static_cast<int>(x), static_cast<int>(y), 20, 20};
