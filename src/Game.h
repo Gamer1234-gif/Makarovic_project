@@ -39,7 +39,13 @@ struct SavedGame {
     int friendCount;
 };
 
-enum GameState { MAIN_MENU, LEVEL_SELECT, NAME_INPUT, PLAYING, DEATH_SCREEN, GAME_OVER };
+struct ReplayFrame {
+    int playerX;
+    int playerY;
+    float timestamp;
+};
+
+enum GameState { MAIN_MENU, LEVEL_SELECT, NAME_INPUT, PLAYING, DEATH_SCREEN, VIEWING_REPLAY, GAME_OVER };
 
 class Game {
 public:
@@ -145,4 +151,23 @@ private:
     void addToBlacklist(const std::string& name);
     bool isBlacklisted(const std::string& name);
     std::vector<std::string> loadBlacklist();
+
+    // Replay functions
+    void recordReplayFrame();
+    void saveReplay(const std::string& name, int level, int finalScore);
+    std::vector<ReplayFrame> loadReplay(const std::string& name);
+    bool hasReplay(const std::string& name);
+    void deleteReplay(const std::string& name);
+    void clearCurrentReplay();
+    void playReplay(const std::string& name);
+    void updateReplayPlayback();
+    void renderReplay();
+
+    // Replay data
+    std::vector<ReplayFrame> currentReplay;
+    std::vector<ReplayFrame> replayPlayback;
+    float replayRecordTimer = 0.0f;
+    static constexpr float REPLAY_RECORD_INTERVAL = 0.033f; // Record every ~33ms for smoother playback
+    int replayFrameIndex = 0;
+    float replayPlaybackTimer = 0.0f;
 };

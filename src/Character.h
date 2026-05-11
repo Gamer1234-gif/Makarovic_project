@@ -110,6 +110,13 @@ public:
         speed = newSpeed;
     }
 
+    void resetMovement() {
+        moveUp = false;
+        moveDown = false;
+        moveLeft = false;
+        moveRight = false;
+    }
+
 private:
     float x, y;
     bool inBoat = false, moveUp = false, moveDown = false, moveLeft = false, moveRight = false;
@@ -502,6 +509,13 @@ public:
 
     void setSpeed(float newSpeed) {
         speed = newSpeed;
+    }
+
+    void resetMovement() {
+        moveUp = false;
+        moveDown = false;
+        moveLeft = false;
+        moveRight = false;
     }
 
 private:

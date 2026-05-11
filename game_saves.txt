@@ -12,3 +12,5 @@ tree | Score: 3 | Level: 1 | Dead: 1
 nb | Score: 12 | Level: 1 | Dead: 1
 jz7i | Score: 0 | Level: 1 | Dead: 1
 joi | Score: 2 | Level: 1 | Dead: 1
+hb | Score: 7 | Level: 2 | Dead: 1
+bvc | Score: 20 | Level: 2 | Dead: 1

@@ -25,21 +25,29 @@ void Game::loadLevel(int levelIndex) {
         }
     }
 
+    player.setInBoat(false); // Will be set to true if spawning in water
     player.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
     player.setSpeed(level.playerSpeed);
+    player.resetMovement(); // Clear any residual movement flags
+
+    // Spawn boat - if player spawned in water, position boat with player
+    if (player.getInBoat()) {
+        // Player spawned in water, position boat at player location
+        boat.SpawnInOcean(player.getX(), player.getY());
+        player.setInBoat(true);
+    } else {
+        // Player spawned on land, spawn boat normally
+        boat.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
+    }
+    boat.setSpeed(level.playerSpeed);
+    boat.setplayerInBoat(player.getInBoat()); // Sync boat state with player
+    boat.resetMovement();                     // Clear any residual movement flags
 
     // Store original position for respawning
     originalPlayerX = player.getX();
     originalPlayerY = player.getY();
     originalBoatX = boat.getX();
     originalBoatY = boat.getY();
-
-    if (player.getInBoat()) {
-        boat.SpawnInOcean(player.getX(), player.getY());
-    } else {
-        boat.Spawn(grid, SQUARE_SIZE, windowWidth, windowHeight);
-    }
-    boat.setSpeed(level.playerSpeed);
 
     enemies.clear();
     for (int i = 0; i < level.enemyCount; ++i) {
@@ -70,16 +78,17 @@ void Game::loadLevel(int levelIndex) {
     friendsRemaining = level.friendCount;
 
     score = 0;
+    clearCurrentReplay(); // Clear replay data for new level
 }
 
 bool Game::init() {
     levels.push_back(
-        {10, 40, 10, 80.0f, 80.0f, 85.0f, 85.0f, 16305}
-    ); // Level 1: 10 enemies, 40 trash, 10 friends, enemy speed 80, trash speed 80, player speed 85, friend speed
+        {10, 40, 10, 80.0f, 70.0f, 85.0f, 85.0f, 16305}
+    ); // Level 1: 10 enemies, 40 trash, 10 friends, enemy speed 80, trash speed 70, player speed 85, friend speed
        // 85, seed 16305
     levels.push_back(
-        {20, 60, 5, 200.0f, 200.0f, 50.0f, 50.0f, 18320}
-    ); // Level 2: 20 enemies, 60 trash, 5 friends, enemy speed 200, trash speed 200, player speed 50, friend speed
+        {20, 60, 5, 75.0f, 100.0f, 85.0f, 50.0f, 18320}
+    ); // Level 2: 20 enemies, 60 trash, 5 friends, enemy speed 200, trash speed 200, player speed 85, friend speed
        // 50, seed 18320
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
@@ -128,7 +137,8 @@ void Game::handleEvents() {
     case NAME_INPUT: handleNameInputEvents(); break;
     case LEVEL_SELECT: handleLevelSelectEvents(); break;
     case PLAYING:
-    case DEATH_SCREEN: {
+    case DEATH_SCREEN:
+    case VIEWING_REPLAY: {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
@@ -138,19 +148,31 @@ void Game::handleEvents() {
                 if (gameState == PLAYING) {
                     saveGameState();
                     running = false;
+                } else if (gameState == VIEWING_REPLAY) {
+                    gameState = DEATH_SCREEN;
+                    replayFrameIndex = 0;
+                    replayPlaybackTimer = 0.0f;
                 } else {
                     running = false;
                 }
             }
             if (gameState == DEATH_SCREEN && event.type == SDL_KEYDOWN && inputLockTimer <= 0.0f) {
-                if (resumedGameIsDead) {
-                    // Only delete save if this was a resumed game that died
-                    deleteSavedGame(playerName);
-                    resumedGameIsDead = false;
-                    isResumedGame = false;
+                if (event.key.keysym.sym == SDLK_r) {
+                    // Load and play replay
+                    if (hasReplay(playerName)) {
+                        playReplay(playerName);
+                        gameState = VIEWING_REPLAY;
+                    }
+                } else {
+                    if (resumedGameIsDead) {
+                        // Only delete save if this was a resumed game that died
+                        deleteSavedGame(playerName);
+                        resumedGameIsDead = false;
+                        isResumedGame = false;
+                    }
+                    gameState = MAIN_MENU;
+                    playerName = "";
                 }
-                gameState = MAIN_MENU;
-                playerName = "";
             }
             if (gameState == PLAYING) {
                 if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_e) {
@@ -308,7 +330,7 @@ void Game::handleLevelSelectEvents() {
 }
 
 void Game::update() {
-    if (gameState != PLAYING) {
+    if (gameState != PLAYING && gameState != VIEWING_REPLAY) {
         if (gameState == DEATH_SCREEN) {
             deathScreenTimer -= deltaTime;
             inputLockTimer -= deltaTime;
@@ -320,6 +342,14 @@ void Game::update() {
         }
         return;
     }
+
+    if (gameState == VIEWING_REPLAY) {
+        updateReplayPlayback();
+        return;
+    }
+
+    // Record replay frame during gameplay
+    recordReplayFrame();
 
     player.update(windowWidth, windowHeight, grid, boat, deltaTime);
     player.Boundaries(windowWidth, windowHeight);
@@ -394,19 +424,17 @@ void Game::update() {
         } else {
             if (SDL_HasIntersection(&pRect, &eRect) && it->nearbyEnemy(enemies)) {
                 std::cout << "Player hit by enemy!\n";
-                // Save death state to game_saves.txt
-                std::ofstream deadFile("game_saves.txt", std::ios::app);
-                if (deadFile.is_open()) {
-                    deadFile << playerName << " | Score: " << score << " | Level: " << (currentLevel + 1)
-                             << " | Dead: 1\n";
-                    deadFile.close();
-                }
+
+                // Save replay before clearing it
+                saveReplay(playerName, currentLevel + 1, score);
+
                 // Add to blacklist so they can't play again
                 addToBlacklist(playerName);
                 // Also save to results
                 saveGameResult();
                 gameState = DEATH_SCREEN;
                 deathScreenTimer = DEATH_SCREEN_DURATION;
+                inputLockTimer = INPUT_LOCK_DURATION; // Lock input briefly so accidental key presses don't advance
                 return;
             }
             ++it;
@@ -543,7 +571,9 @@ void Game::render() {
         player.render(ren);
         boat.render(ren);
         for (const auto& enemy : enemies) {
-            enemy.render(ren);
+            if (player.nearbyEnemyRender(enemy)) {
+                enemy.render(ren);
+            }
         }
 
         for (const auto& friend_ : friends) {
@@ -586,6 +616,20 @@ void Game::render() {
             }
         }
         renderDeathScreen();
+        break;
+    case VIEWING_REPLAY:
+        for (int i = 0; i < GRID_SIZE; ++i) {
+            for (int j = 0; j < GRID_SIZE; ++j) {
+                if (grid[i][j] == 1) {
+                    SDL_SetRenderDrawColor(ren, 0, 200, 0, 255);
+                } else {
+                    SDL_SetRenderDrawColor(ren, 0, 0, 200, 255);
+                }
+                SDL_Rect cell{j * SQUARE_SIZE, i * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE};
+                SDL_RenderFillRect(ren, &cell);
+            }
+        }
+        renderReplay();
         break;
     case GAME_OVER: break;
     }
@@ -873,40 +917,71 @@ void Game::clean() {
 }
 
 void Game::saveGameResult() {
-    std::ofstream file("game_results.txt", std::ios::app);
+    std::string filename = "game_results.bin";
+
+    // First load all existing results
+    std::vector<GameResult> allResults = loadGameResults();
+
+    // Add new result
+    GameResult newResult;
+    newResult.playerName = playerName;
+    newResult.score = score;
+    newResult.level = currentLevel + 1;
+    allResults.push_back(newResult);
+
+    // Write all results back to binary file
+    std::ofstream file(filename, std::ios::binary);
     if (file.is_open()) {
-        file << playerName << " | Score: " << score << " | Level: " << (currentLevel + 1) << "\n";
+        int count = (int)allResults.size();
+        file.write(reinterpret_cast<char*>(&count), sizeof(int));
+
+        for (const auto& result : allResults) {
+            int nameLen = result.playerName.length();
+            file.write(reinterpret_cast<char*>(&nameLen), sizeof(int));
+            file.write(result.playerName.c_str(), nameLen);
+
+            int score_val = result.score;
+            int level_val = result.level;
+            file.write(reinterpret_cast<char*>(&score_val), sizeof(int));
+            file.write(reinterpret_cast<char*>(&level_val), sizeof(int));
+        }
+
         file.close();
-        std::cout << "Game result saved: " << playerName << " - Score: " << score << " - Level: " << (currentLevel + 1)
-                  << "\n";
+        std::cout << "Game result saved (binary): " << playerName << " - Score: " << score
+                  << " - Level: " << (currentLevel + 1) << "\n";
     } else {
-        std::cerr << "Failed to open game_results.txt for writing\n";
+        std::cerr << "Failed to open game_results.bin for writing\n";
     }
 }
 
 std::vector<GameResult> Game::loadGameResults() {
     std::vector<GameResult> results;
-    std::ifstream file("game_results.txt");
+    std::string filename = "game_results.bin";
+    std::ifstream file(filename, std::ios::binary);
+
     if (file.is_open()) {
-        std::string line;
-        while (std::getline(file, line)) {
-            if (line.empty()) continue;
+        int count;
+        file.read(reinterpret_cast<char*>(&count), sizeof(int));
 
-            // Parse line format: "name | Score: score | Level: level"
-            size_t pos1 = line.find(" | Score: ");
-            size_t pos2 = line.find(" | Level: ");
+        for (int i = 0; i < count; ++i) {
+            int nameLen;
+            file.read(reinterpret_cast<char*>(&nameLen), sizeof(int));
 
-            if (pos1 != std::string::npos && pos2 != std::string::npos) {
-                std::string name = line.substr(0, pos1);
-                std::string scoreStr = line.substr(pos1 + 10, pos2 - pos1 - 10);
-                std::string levelStr = line.substr(pos2 + 10);
+            char* nameBuf = new char[nameLen + 1];
+            file.read(nameBuf, nameLen);
+            nameBuf[nameLen] = '\0';
 
-                GameResult result;
-                result.playerName = name;
-                result.score = std::stoi(scoreStr);
-                result.level = std::stoi(levelStr);
-                results.push_back(result);
-            }
+            int score_val, level_val;
+            file.read(reinterpret_cast<char*>(&score_val), sizeof(int));
+            file.read(reinterpret_cast<char*>(&level_val), sizeof(int));
+
+            GameResult result;
+            result.playerName = std::string(nameBuf);
+            result.score = score_val;
+            result.level = level_val;
+            results.push_back(result);
+
+            delete[] nameBuf;
         }
         file.close();
     }
@@ -1079,6 +1154,150 @@ bool Game::isBlacklisted(const std::string& name) {
         file.close();
     }
     return false;
+}
+
+// ============= REPLAY FUNCTIONS =============
+
+void Game::clearCurrentReplay() {
+    currentReplay.clear();
+    replayRecordTimer = 0.0f;
+}
+
+void Game::recordReplayFrame() {
+    replayRecordTimer += deltaTime;
+    if (replayRecordTimer >= REPLAY_RECORD_INTERVAL) {
+        ReplayFrame frame;
+        frame.playerX = player.getX();
+        frame.playerY = player.getY();
+        frame.timestamp = replayRecordTimer; // Will be normalized after
+        currentReplay.push_back(frame);
+        replayRecordTimer = 0.0f;
+    }
+}
+
+void Game::saveReplay(const std::string& name, int level, int finalScore) {
+    std::string filename = "replay_" + name + ".txt";
+    std::ofstream file(filename);
+    if (file.is_open()) {
+        file << "Player: " << name << "\n";
+        file << "Level: " << level << "\n";
+        file << "Score: " << finalScore << "\n";
+        file << "Frames: " << currentReplay.size() << "\n";
+        file << "=== REPLAY DATA ===\n";
+
+        for (const auto& frame : currentReplay) {
+            file << frame.playerX << "," << frame.playerY << "\n";
+        }
+
+        file.close();
+        std::cout << "Replay saved: " << filename << "\n";
+    } else {
+        std::cerr << "Failed to save replay: " << filename << "\n";
+    }
+}
+
+std::vector<ReplayFrame> Game::loadReplay(const std::string& name) {
+    std::vector<ReplayFrame> replay;
+    std::string filename = "replay_" + name + ".txt";
+    std::ifstream file(filename);
+    if (file.is_open()) {
+        std::string line;
+        bool readingFrames = false;
+
+        while (std::getline(file, line)) {
+            if (line == "=== REPLAY DATA ===") {
+                readingFrames = true;
+                continue;
+            }
+
+            if (readingFrames && !line.empty()) {
+                size_t commaPos = line.find(',');
+                if (commaPos != std::string::npos) {
+                    ReplayFrame frame;
+                    frame.playerX = std::stoi(line.substr(0, commaPos));
+                    frame.playerY = std::stoi(line.substr(commaPos + 1));
+                    frame.timestamp = (float)replay.size() * REPLAY_RECORD_INTERVAL;
+                    replay.push_back(frame);
+                }
+            }
+        }
+
+        file.close();
+        std::cout << "Replay loaded: " << filename << " with " << replay.size() << " frames\n";
+    }
+    return replay;
+}
+
+bool Game::hasReplay(const std::string& name) {
+    std::string filename = "replay_" + name + ".txt";
+    std::ifstream file(filename);
+    return file.good();
+}
+
+void Game::deleteReplay(const std::string& name) {
+    std::string filename = "replay_" + name + ".txt";
+    if (std::remove(filename.c_str()) == 0) {
+        std::cout << "Replay deleted: " << filename << "\n";
+    }
+}
+
+void Game::playReplay(const std::string& name) {
+    replayPlayback = loadReplay(name);
+    replayFrameIndex = 0;
+    replayPlaybackTimer = 0.0f;
+}
+
+void Game::updateReplayPlayback() {
+    replayPlaybackTimer += deltaTime;
+
+    // Advance frame if enough time has passed
+    if (replayPlaybackTimer >= REPLAY_RECORD_INTERVAL && replayFrameIndex < (int)replayPlayback.size() - 1) {
+        replayFrameIndex++;
+        replayPlaybackTimer = 0.0f;
+    } else if (replayFrameIndex >= (int)replayPlayback.size() - 1) {
+        // Replay finished, show message
+        replayFrameIndex = (int)replayPlayback.size() - 1;
+    }
+}
+
+void Game::renderReplay() {
+    // Render player at replay position
+    if (!replayPlayback.empty() && replayFrameIndex < (int)replayPlayback.size()) {
+        const ReplayFrame& frame = replayPlayback[replayFrameIndex];
+        SDL_SetRenderDrawColor(ren, 255, 255, 0, 255); // Yellow for player
+        SDL_Rect playerRect = {frame.playerX, frame.playerY, 20, 20};
+        SDL_RenderFillRect(ren, &playerRect);
+    }
+
+    // Render replay info on screen
+    if (font) {
+        SDL_Color infoColor = {255, 255, 255, 255};
+        std::string replayText = "REPLAY - Press ESC to exit";
+        SDL_Surface* surface = TTF_RenderText_Solid(font, replayText.c_str(), infoColor);
+        if (surface) {
+            SDL_Texture* texture = SDL_CreateTextureFromSurface(ren, surface);
+            if (texture) {
+                SDL_Rect dstRect = {windowWidth / 2 - surface->w / 2, 20, surface->w, surface->h};
+                SDL_RenderCopy(ren, texture, NULL, &dstRect);
+                SDL_DestroyTexture(texture);
+            }
+            SDL_FreeSurface(surface);
+        }
+
+        // Show frame counter
+        std::string frameText =
+            "Frame: " + std::to_string(replayFrameIndex + 1) + " / " + std::to_string(replayPlayback.size());
+        SDL_Surface* frameSurface = TTF_RenderText_Solid(font, frameText.c_str(), infoColor);
+        if (frameSurface) {
+            SDL_Texture* frameTexture = SDL_CreateTextureFromSurface(ren, frameSurface);
+            if (frameTexture) {
+                SDL_Rect frameRect = {windowWidth / 2 - frameSurface->w / 2, 50, frameSurface->w, frameSurface->h};
+                SDL_RenderCopy(ren, frameTexture, NULL, &frameRect);
+                SDL_DestroyTexture(frameTexture);
+            }
+            SDL_FreeSurface(frameSurface);
+        }
+    }
 }
 
 std::vector<std::string> Game::loadBlacklist() {
