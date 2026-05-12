@@ -14,9 +14,7 @@ void Game::loadLevel(int levelIndex) {
     const Level& level = levels[levelIndex];
     noise = PerlinNoise(level.seed);
 
-    grid.clear();
-    grid.resize(GRID_SIZE, std::vector<int>(GRID_SIZE));
-
+    // Initialize grid
     for (int i = 0; i < GRID_SIZE; ++i) {
         for (int j = 0; j < GRID_SIZE; ++j) {
             double n = noise.noise(i * frequency, j * frequency);
@@ -413,33 +411,62 @@ void Game::update() {
     }
 
     for (auto it = enemies.begin(); it != enemies.end();) {
+
         SDL_Rect pRect = player.getRect();
         SDL_Rect eRect = it->getRect();
 
-        if (SDL_HasIntersection(&pRect, &eRect) && !it->nearbyEnemy(enemies)) {
-            std::cout << "Enemy destroyed!\n";
-            it = enemies.erase(it);
-            score++;
-            enemiesRemaining--;
-        } else {
-            if (SDL_HasIntersection(&pRect, &eRect) && it->nearbyEnemy(enemies)) {
+        if (SDL_HasIntersection(&pRect, &eRect)) {
+
+            // Enemy alone -> destroy enemy
+            if (!it->nearbyEnemy(enemies)) {
+
+                std::cout << "Enemy destroyed!\n";
+
+                it = enemies.erase(it);
+
+                score++;
+                enemiesRemaining--;
+
+                continue;
+            }
+
+            // Enemy stronger than nearby friends -> player dies
+            if (it->nearbyEnemy(enemies) > 1 + player.nearbyFriend(friends)) {
+
                 std::cout << "Player hit by enemy!\n";
 
-                // Save replay before clearing it
                 saveReplay(playerName, currentLevel + 1, score);
 
-                // Add to blacklist so they can't play again
                 addToBlacklist(playerName);
-                // Also save to results
+
                 saveGameResult();
+
                 gameState = DEATH_SCREEN;
+
                 deathScreenTimer = DEATH_SCREEN_DURATION;
-                inputLockTimer = INPUT_LOCK_DURATION; // Lock input briefly so accidental key presses don't advance
+
+                inputLockTimer = INPUT_LOCK_DURATION;
+
                 return;
             }
-            ++it;
+
+            // Player saved by nearby friends
+            else {
+
+                std::cout << "Player saved by nearby friend!\n";
+
+                it = enemies.erase(it);
+
+                score++;
+                enemiesRemaining--;
+
+                continue;
+            }
         }
+
+        ++it;
     }
+
 
     for (auto it = friends.begin(); it != friends.end();) {
         SDL_Rect fRect = it->getRect();

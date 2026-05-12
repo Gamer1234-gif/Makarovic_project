@@ -81,7 +81,7 @@ private:
     int windowWidth = 1920;
     int windowHeight = 1080;
 
-    std::vector<std::vector<int>> grid;
+    int grid[GRID_SIZE][GRID_SIZE];
 
     static constexpr double frequency = 0.02;  // lower = bigger continents
     static constexpr double threshold = 0.525; // higher = less land

@@ -1,0 +1,12 @@
+Player: greger
+Level: 1
+Score: 0
+Frames: 7
+=== REPLAY DATA ===
+100,100
+100,100
+100,100
+100,100
+100,100
+100,100
+100,100

@@ -5,19 +5,16 @@
 #include <iostream>
 #include <vector>
 
-class Boat;  // Forward declaration
-class Trash; // Forward declaration
-class Enemy; // Forward declaration
+class Boat;   // Forward declaration
+class Trash;  // Forward declaration
+class Enemy;  // Forward declaration
+class Friend; // Forward declaration
 
 class Character {
 public:
-    virtual void update(
-        int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime
-    ) = 0;
+    virtual void update(int windowWidth, int windowHeight, int grid[75][75], float deltaTime) = 0;
     virtual void render(SDL_Renderer* ren) const = 0;
-    virtual void Spawn(
-        const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight
-    ) = 0;
+    virtual void Spawn(int grid[75][75], int squareSize, int windowWidth, int windowHeight) = 0;
 
     virtual ~Character() {
     }
@@ -36,12 +33,10 @@ public:
 class Player {
 public:
     void handleInput(const SDL_Event& e);
-    void boatExitInput(const SDL_Event& e, const std::vector<std::vector<int>>& grid, const Boat& boat);
-    void update(
-        int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, const Boat& boat, float deltaTime
-    );
+    void boatExitInput(const SDL_Event& e, int grid[75][75], const Boat& boat);
+    void update(int windowWidth, int windowHeight, int grid[75][75], const Boat& boat, float deltaTime);
     void render(SDL_Renderer* ren) const;
-    void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) {
+    void Spawn(int grid[75][75], int squareSize, int windowWidth, int windowHeight) {
         x = 100;
         y = 100;
         if (grid[3][3] == 0) { // Spawn on water
@@ -92,19 +87,7 @@ public:
     int nearbyEnemycount(const std::vector<Enemy>& enemies) const;
     bool nearbyEnemyRender(const Enemy& enemy) const;
 
-    int nearbyFriend(const std::vector<Player>& friends) const {
-        int stev = 0;
-
-        for (const auto& friend_ : friends) {
-            float distX = x - friend_.x;
-            float distY = y - friend_.y;
-            if (distX * distX + distY * distY < 22500) { // 150 pixels radius, 150^2 = 22500
-                stev++;
-            }
-        }
-
-        return stev;
-    }
+    int nearbyFriend(const std::vector<Friend>& friends) const;
 
     void setSpeed(float newSpeed) {
         speed = newSpeed;
@@ -126,12 +109,12 @@ private:
 
 class Enemy : public Character {
 public:
-    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) override;
+    void update(int windowWidth, int windowHeight, int grid[75][75], float deltaTime) override;
     void render(SDL_Renderer* ren) const override;
-    void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) override {
+    void Spawn(int grid[75][75], int squareSize, int windowWidth, int windowHeight) override {
         while (true) {
-            size_t i = rand() % grid.size();
-            size_t j = rand() % grid[i].size();
+            size_t i = rand() % 75;
+            size_t j = rand() % 75;
             if (grid[i][j] == 1) { // Spawn on land
                 x = j * squareSize + 5;
                 y = i * squareSize + 5;
@@ -194,10 +177,10 @@ public:
         return dirY;
     }
 
-    bool checkRight(const std::vector<std::vector<int>>& grid) const;
-    bool checkLeft(const std::vector<std::vector<int>>& grid) const;
-    bool checkUp(const std::vector<std::vector<int>>& grid) const;
-    bool checkDown(const std::vector<std::vector<int>>& grid) const;
+    bool checkRight(int grid[75][75]) const;
+    bool checkLeft(int grid[75][75]) const;
+    bool checkUp(int grid[75][75]) const;
+    bool checkDown(int grid[75][75]) const;
     void Enemy_timer(float deltaTime) {
         timerTrash += deltaTime;
         if (timerTrash >= 30.0f) {
@@ -291,12 +274,12 @@ private:
 
 class Friend : public Character {
 public:
-    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) override;
+    void update(int windowWidth, int windowHeight, int grid[75][75], float deltaTime) override;
     void render(SDL_Renderer* ren) const override;
-    void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) override {
+    void Spawn(int grid[75][75], int squareSize, int windowWidth, int windowHeight) override {
         while (true) {
-            size_t i = rand() % grid.size();
-            size_t j = rand() % grid[i].size();
+            size_t i = rand() % 75;
+            size_t j = rand() % 75;
             x = j * squareSize + 5;
             y = i * squareSize + 5;
             if (x < windowWidth - 20 && y < windowHeight - 20) {
@@ -359,12 +342,12 @@ private:
 
 class Trash : public Character {
 public:
-    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime) override;
+    void update(int windowWidth, int windowHeight, int grid[75][75], float deltaTime) override;
     void render(SDL_Renderer* ren) const override;
-    void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) override {
+    void Spawn(int grid[75][75], int squareSize, int windowWidth, int windowHeight) override {
         while (true) {
-            size_t i = rand() % grid.size();
-            size_t j = rand() % grid[i].size();
+            size_t i = rand() % 75;
+            size_t j = rand() % 75;
             if (grid[i][j] == 0) { // Spawn on water
                 x = j * squareSize + 5;
                 y = i * squareSize + 5;
@@ -391,28 +374,26 @@ public:
         }
     }
 
-    void SpawnFromEnemy(
-        const Enemy& enemy, const std::vector<std::vector<int>>& grid, int windowWidth, int windowHeight
-    ) {
+    void SpawnFromEnemy(const Enemy& enemy, int grid[75][75], int windowWidth, int windowHeight) {
         int gridX = (enemy.x + 10) / 30;
         int gridY = (enemy.y + 10) / 30;
 
         // Validate initial position
-        if (gridY < 0 || gridY >= (int)grid.size() || gridX < 0 || gridX >= (int)grid[gridY].size()) {
+        if (gridY < 0 || gridY >= 75 || gridX < 0 || gridX >= 75) {
             return; // Invalid spawn position
         }
 
         std::vector<std::pair<int, int>> directions;
-        if (gridY - 2 >= 0 && gridX < (int)grid[gridY - 2].size() && grid[gridY - 2][gridX] == 0) {
+        if (gridY - 2 >= 0 && gridX < 75 && grid[gridY - 2][gridX] == 0) {
             directions.emplace_back(0, -1); // Up
         }
-        if (gridY + 2 < (int)grid.size() && gridX < (int)grid[gridY + 2].size() && grid[gridY + 2][gridX] == 0) {
+        if (gridY + 2 < 75 && gridX < 75 && grid[gridY + 2][gridX] == 0) {
             directions.emplace_back(0, 1); // Down
         }
         if (gridX - 2 >= 0 && grid[gridY][gridX - 2] == 0) {
             directions.emplace_back(-1, 0); // Left
         }
-        if (gridX + 2 < (int)grid[gridY].size() && grid[gridY][gridX + 2] == 0) {
+        if (gridX + 2 < 75 && grid[gridY][gridX + 2] == 0) {
             directions.emplace_back(1, 0); // Right
         }
 
@@ -448,16 +429,16 @@ private:
 class Boat {
 public:
     void handleInput(const SDL_Event& e);
-    void update(int windowWidth, int windowHeight, const std::vector<std::vector<int>>& grid, float deltaTime);
+    void update(int windowWidth, int windowHeight, int grid[75][75], float deltaTime);
     void render(SDL_Renderer* ren) const;
-    bool check_up(const std::vector<std::vector<int>>& grid, int i, int j) const;
-    bool check_down(const std::vector<std::vector<int>>& grid, int i, int j) const;
-    bool check_left(const std::vector<std::vector<int>>& grid, int i, int j) const;
-    bool check_right(const std::vector<std::vector<int>>& grid, int i, int j) const;
-    void Spawn(const std::vector<std::vector<int>>& grid, int squareSize, int windowWidth, int windowHeight) {
+    bool check_up(int grid[75][75], int i, int j) const;
+    bool check_down(int grid[75][75], int i, int j) const;
+    bool check_left(int grid[75][75], int i, int j) const;
+    bool check_right(int grid[75][75], int i, int j) const;
+    void Spawn(int grid[75][75], int squareSize, int windowWidth, int windowHeight) {
         while (true) {
-            size_t i = rand() % grid.size();
-            size_t j = rand() % grid[i].size();
+            size_t i = rand() % 75;
+            size_t j = rand() % 75;
             if (grid[i][j] == 0 &&
                 (check_up(grid, i - 1, j) || check_left(grid, i, j - 1) || check_down(grid, i + 1, j) ||
                  check_right(grid, i, j + 1)) &&
