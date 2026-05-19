@@ -3,6 +3,7 @@
 #include <SDL2/SDL_ttf.h>
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 #include <iostream>
 
 void Game::loadLevel(int levelIndex) {
@@ -169,7 +170,7 @@ void Game::handleEvents() {
                         isResumedGame = false;
                     }
                     gameState = MAIN_MENU;
-                    playerName = "";
+                    playerName[0] = '\0';
                 }
             }
             if (gameState == PLAYING) {
@@ -224,14 +225,14 @@ void Game::handleNameInputEvents() {
         if (event.type == SDL_KEYDOWN) {
             if (event.key.keysym.sym == SDLK_ESCAPE) {
                 gameState = MAIN_MENU;
-                playerName = "";
+                playerName[0] = '\0';
             }
-            if (event.key.keysym.sym == SDLK_RETURN && !playerName.empty()) {
+            if (event.key.keysym.sym == SDLK_RETURN && playerName[0] != '\0') {
                 // Check if player is blacklisted (died before)
                 if (isBlacklisted(playerName)) {
                     // Player has died before - cannot play
                     gameState = MAIN_MENU;
-                    playerName = "";
+                    playerName[0] = '\0';
                     std::cout << "This player has already died and cannot continue.\n";
                 } else if (hasSavedGame(playerName)) {
                     SavedGame savedGame = loadGameState(playerName);
@@ -289,13 +290,17 @@ void Game::handleNameInputEvents() {
                     gameState = LEVEL_SELECT;
                 }
             }
-            if (event.key.keysym.sym == SDLK_BACKSPACE && !playerName.empty()) {
-                playerName.pop_back();
+            if (event.key.keysym.sym == SDLK_BACKSPACE && playerName[0] != '\0') {
+                size_t len = strlen(playerName);
+                if (len > 0) {
+                    playerName[len - 1] = '\0';
+                }
             }
         }
         if (event.type == SDL_TEXTINPUT) {
-            if (playerName.length() < 20) {
-                playerName += event.text.text;
+            size_t len = strlen(playerName);
+            if (len < 20) {
+                strcat(playerName, event.text.text);
             }
         }
     }
@@ -310,7 +315,7 @@ void Game::handleLevelSelectEvents() {
         if (event.type == SDL_KEYDOWN) {
             if (event.key.keysym.sym == SDLK_ESCAPE) {
                 gameState = NAME_INPUT;
-                playerName = "";
+                playerName[0] = '\0';
             }
             if (event.key.keysym.sym == SDLK_LEFT || event.key.keysym.sym == SDLK_UP) {
                 selectedLevel = 0;
@@ -431,7 +436,7 @@ void Game::update() {
             }
 
             // Enemy stronger than nearby friends -> player dies
-            if (it->nearbyEnemy(enemies) > 1 + player.nearbyFriend(friends)) {
+            if (it->nearbyEnemy(enemies) > player.nearbyFriend(friends)) {
 
                 std::cout << "Player hit by enemy!\n";
 
@@ -612,7 +617,7 @@ void Game::render() {
         }
 
         if (font) {
-            std::string text = "Player: " + playerName + " | Score: " + std::to_string(score) +
+            std::string text = std::string("Player: ") + playerName + " | Score: " + std::to_string(score) +
                                " | Enemies: " + std::to_string(enemiesRemaining) +
                                " | Trash: " + std::to_string(trashRemaining) +
                                " | Friends: " + std::to_string(friendsRemaining);
@@ -734,7 +739,7 @@ void Game::renderNameInput() {
 
     if (font) {
         SDL_Color inputColor = {255, 255, 255, 255};
-        std::string displayName = playerName.empty() ? "_" : playerName;
+        std::string displayName = (playerName[0] == '\0') ? "_" : playerName;
         SDL_Surface* nameSurface = TTF_RenderText_Solid(font, displayName.c_str(), inputColor);
         if (nameSurface) {
             SDL_Texture* nameTexture = SDL_CreateTextureFromSurface(ren, nameSurface);
@@ -951,7 +956,8 @@ void Game::saveGameResult() {
 
     // Add new result
     GameResult newResult;
-    newResult.playerName = playerName;
+    strncpy(newResult.playerName, playerName, 20);
+    newResult.playerName[20] = '\0';
     newResult.score = score;
     newResult.level = currentLevel + 1;
     allResults.push_back(newResult);
@@ -963,9 +969,7 @@ void Game::saveGameResult() {
         file.write(reinterpret_cast<char*>(&count), sizeof(int));
 
         for (const auto& result : allResults) {
-            int nameLen = result.playerName.length();
-            file.write(reinterpret_cast<char*>(&nameLen), sizeof(int));
-            file.write(result.playerName.c_str(), nameLen);
+            file.write(result.playerName, 21);
 
             int score_val = result.score;
             int level_val = result.level;
@@ -991,24 +995,16 @@ std::vector<GameResult> Game::loadGameResults() {
         file.read(reinterpret_cast<char*>(&count), sizeof(int));
 
         for (int i = 0; i < count; ++i) {
-            int nameLen;
-            file.read(reinterpret_cast<char*>(&nameLen), sizeof(int));
-
-            char* nameBuf = new char[nameLen + 1];
-            file.read(nameBuf, nameLen);
-            nameBuf[nameLen] = '\0';
+            GameResult result;
+            file.read(result.playerName, 21);
 
             int score_val, level_val;
             file.read(reinterpret_cast<char*>(&score_val), sizeof(int));
             file.read(reinterpret_cast<char*>(&level_val), sizeof(int));
 
-            GameResult result;
-            result.playerName = std::string(nameBuf);
             result.score = score_val;
             result.level = level_val;
             results.push_back(result);
-
-            delete[] nameBuf;
         }
         file.close();
     }
@@ -1033,14 +1029,12 @@ std::vector<GameResult> Game::getTop5Results() {
 
 void Game::saveGameState() {
     // Create filename based on player name
-    std::string filename = "save_" + playerName + ".bin";
+    std::string filename = "save_" + std::string(playerName) + ".bin";
 
     std::ofstream file(filename, std::ios::binary);
     if (file.is_open()) {
-        // Write player name (length + string)
-        int nameLen = playerName.length();
-        file.write(reinterpret_cast<char*>(&nameLen), sizeof(int));
-        file.write(playerName.c_str(), nameLen);
+        // Write player name
+        file.write(playerName, 21);
 
         // Write game state
         int score_val = score;
@@ -1076,9 +1070,10 @@ void Game::saveGameState() {
     }
 }
 
-SavedGame Game::loadGameState(const std::string& name) {
+SavedGame Game::loadGameState(const char* name) {
     SavedGame result;
-    result.playerName = name;
+    strncpy(result.playerName, name, 20);
+    result.playerName[20] = '\0';
     result.score = 0;
     result.level = 1;
     result.isDead = false;
@@ -1091,17 +1086,14 @@ SavedGame Game::loadGameState(const std::string& name) {
     result.trashCount = 0;
     result.friendCount = 0;
 
-    std::string filename = "save_" + name + ".bin";
+    std::string filename = "save_" + std::string(name) + ".bin";
     std::ifstream file(filename, std::ios::binary);
     if (file.is_open()) {
         // Read player name
-        int nameLen;
-        file.read(reinterpret_cast<char*>(&nameLen), sizeof(int));
-        char* nameBuf = new char[nameLen + 1];
-        file.read(nameBuf, nameLen);
-        nameBuf[nameLen] = '\0';
-        result.playerName = std::string(nameBuf);
-        delete[] nameBuf;
+        char nameBuf[21];
+        file.read(nameBuf, 21);
+        strncpy(result.playerName, nameBuf, 20);
+        result.playerName[20] = '\0';
 
         // Read game state
         int score_val, level_val, isDead_val, playerX_val, playerY_val, boatX_val, boatY_val, inBoat_val;
@@ -1139,25 +1131,25 @@ SavedGame Game::loadGameState(const std::string& name) {
     return result;
 }
 
-bool Game::hasSavedGame(const std::string& name) {
-    std::string filename = "save_" + name + ".bin";
+bool Game::hasSavedGame(const char* name) {
+    std::string filename = "save_" + std::string(name) + ".bin";
     std::ifstream file(filename, std::ios::binary);
     return file.good();
 }
 
-void Game::deleteSavedGame(const std::string& name) {
-    std::string filename = "save_" + name + ".bin";
+void Game::deleteSavedGame(const char* name) {
+    std::string filename = "save_" + std::string(name) + ".bin";
     if (std::remove(filename.c_str()) == 0) {
         std::cout << "Save file deleted: " << filename << "\n";
     }
 }
 
-bool Game::playerHasDiedBefore(const std::string& name) {
+bool Game::playerHasDiedBefore(const char* name) {
     SavedGame saved = loadGameState(name);
     return saved.isDead;
 }
 
-void Game::addToBlacklist(const std::string& name) {
+void Game::addToBlacklist(const char* name) {
     std::ofstream file("blacklist.txt", std::ios::app);
     if (file.is_open()) {
         file << name << "\n";
@@ -1168,7 +1160,7 @@ void Game::addToBlacklist(const std::string& name) {
     }
 }
 
-bool Game::isBlacklisted(const std::string& name) {
+bool Game::isBlacklisted(const char* name) {
     std::ifstream file("blacklist.txt");
     if (file.is_open()) {
         std::string line;
@@ -1202,8 +1194,8 @@ void Game::recordReplayFrame() {
     }
 }
 
-void Game::saveReplay(const std::string& name, int level, int finalScore) {
-    std::string filename = "replay_" + name + ".txt";
+void Game::saveReplay(const char* name, int level, int finalScore) {
+    std::string filename = "replay_" + std::string(name) + ".txt";
     std::ofstream file(filename);
     if (file.is_open()) {
         file << "Player: " << name << "\n";
@@ -1223,9 +1215,9 @@ void Game::saveReplay(const std::string& name, int level, int finalScore) {
     }
 }
 
-std::vector<ReplayFrame> Game::loadReplay(const std::string& name) {
+std::vector<ReplayFrame> Game::loadReplay(const char* name) {
     std::vector<ReplayFrame> replay;
-    std::string filename = "replay_" + name + ".txt";
+    std::string filename = "replay_" + std::string(name) + ".txt";
     std::ifstream file(filename);
     if (file.is_open()) {
         std::string line;
@@ -1255,20 +1247,20 @@ std::vector<ReplayFrame> Game::loadReplay(const std::string& name) {
     return replay;
 }
 
-bool Game::hasReplay(const std::string& name) {
-    std::string filename = "replay_" + name + ".txt";
+bool Game::hasReplay(const char* name) {
+    std::string filename = "replay_" + std::string(name) + ".txt";
     std::ifstream file(filename);
     return file.good();
 }
 
-void Game::deleteReplay(const std::string& name) {
-    std::string filename = "replay_" + name + ".txt";
+void Game::deleteReplay(const char* name) {
+    std::string filename = "replay_" + std::string(name) + ".txt";
     if (std::remove(filename.c_str()) == 0) {
         std::cout << "Replay deleted: " << filename << "\n";
     }
 }
 
-void Game::playReplay(const std::string& name) {
+void Game::playReplay(const char* name) {
     replayPlayback = loadReplay(name);
     replayFrameIndex = 0;
     replayPlaybackTimer = 0.0f;

@@ -19,13 +19,13 @@ struct Level {
 };
 
 struct GameResult {
-    std::string playerName;
+    char playerName[21];
     int score;
     int level;
 };
 
 struct SavedGame {
-    std::string playerName;
+    char playerName[21];
     int score;
     int level;
     bool isDead;
@@ -108,7 +108,7 @@ private:
 
     // Game states
     GameState gameState = MAIN_MENU;
-    std::string playerName = "";
+    char playerName[21] = {};
     int selectedLevel = 0;
     float deathScreenTimer = 0.0f;
     static constexpr float DEATH_SCREEN_DURATION = 3.0f;
@@ -142,24 +142,24 @@ private:
 
     // Save/Load game state functions
     void saveGameState();
-    SavedGame loadGameState(const std::string& name);
-    bool hasSavedGame(const std::string& name);
-    void deleteSavedGame(const std::string& name);
-    bool playerHasDiedBefore(const std::string& name);
+    SavedGame loadGameState(const char* name);
+    bool hasSavedGame(const char* name);
+    void deleteSavedGame(const char* name);
+    bool playerHasDiedBefore(const char* name);
 
     // Blacklist functions
-    void addToBlacklist(const std::string& name);
-    bool isBlacklisted(const std::string& name);
+    void addToBlacklist(const char* name);
+    bool isBlacklisted(const char* name);
     std::vector<std::string> loadBlacklist();
 
     // Replay functions
     void recordReplayFrame();
-    void saveReplay(const std::string& name, int level, int finalScore);
-    std::vector<ReplayFrame> loadReplay(const std::string& name);
-    bool hasReplay(const std::string& name);
-    void deleteReplay(const std::string& name);
+    void saveReplay(const char* name, int level, int finalScore);
+    std::vector<ReplayFrame> loadReplay(const char* name);
+    bool hasReplay(const char* name);
+    void deleteReplay(const char* name);
     void clearCurrentReplay();
-    void playReplay(const std::string& name);
+    void playReplay(const char* name);
     void updateReplayPlayback();
     void renderReplay();
 
